@@ -1,0 +1,14 @@
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+        <title>红队攻防 - 分类 - aeverj&#39;s blog</title>
+        <link>https://aeverj.github.io/categories/%E7%BA%A2%E9%98%9F%E6%94%BB%E9%98%B2/</link>
+        <description>红队攻防 - 分类 - aeverj&#39;s blog</description>
+        <generator>Hugo -- gohugo.io</generator><language>zh-CN</language><copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright><lastBuildDate>Sun, 13 Feb 2022 00:00:00 &#43;0800</lastBuildDate><atom:link href="https://aeverj.github.io/categories/%E7%BA%A2%E9%98%9F%E6%94%BB%E9%98%B2/" rel="self" type="application/rss+xml" /><item>
+    <title>C#中利用Syscall免杀 v1.0</title>
+    <link>https://aeverj.github.io/posts/csharp%E4%B8%AD%E5%88%A9%E7%94%A8syscall-%E5%85%8D%E6%9D%80/</link>
+    <pubDate>Sun, 13 Feb 2022 00:00:00 &#43;0800</pubDate>
+    <author>作者</author>
+    <guid>https://aeverj.github.io/posts/csharp%E4%B8%AD%E5%88%A9%E7%94%A8syscall-%E5%85%8D%E6%9D%80/</guid>
+    <description><![CDATA[<p>在ring3利用直接系统调用来绕过杀软对敏感函数的Hook</p>]]></description>
+</item></channel>
+</rss>

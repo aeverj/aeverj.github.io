@@ -1,0 +1,14 @@
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+        <title>about - 分类 - aeverj&#39;s blog</title>
+        <link>https://aeverj.github.io/categories/about/</link>
+        <description>about - 分类 - aeverj&#39;s blog</description>
+        <generator>Hugo -- gohugo.io</generator><language>zh-CN</language><copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright><lastBuildDate>Sun, 13 Feb 2022 00:00:00 &#43;0800</lastBuildDate><atom:link href="https://aeverj.github.io/categories/about/" rel="self" type="application/rss+xml" /><item>
+    <title>关于</title>
+    <link>https://aeverj.github.io/about/</link>
+    <pubDate>Sun, 13 Feb 2022 00:00:00 &#43;0800</pubDate>
+    <author>作者</author>
+    <guid>https://aeverj.github.io/about/</guid>
+    <description><![CDATA[我 web安全出身，喜欢研究各种功能实现的代码与漏洞形成原理，对各种未知的技术充满好奇。 技术探索 web安全 红队攻防 自动化工具 编程语言 Python C# Golang NimLang C\C++]]></description>
+</item></channel>
+</rss>

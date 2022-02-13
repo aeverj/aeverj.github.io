@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="robots" content="noodp" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge, chrome=1">
+        <title>C#中利用Syscall免杀 v1.0 - aeverj&#39;s blog</title><meta name="Description" content="关于 LoveIt 主题"><meta property="og:title" content="C#中利用Syscall免杀 v1.0" />
+<meta property="og:description" content="在ring3利用直接系统调用来绕过杀软对敏感函数的Hook" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://aeverj.github.io/posts/csharp%E4%B8%AD%E5%88%A9%E7%94%A8syscall-%E5%85%8D%E6%9D%80/" /><meta property="og:image" content="https://aeverj.github.io/logo.png"/><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2022-02-13T00:00:00+08:00" />
+<meta property="article:modified_time" content="2022-02-13T00:00:00+08:00" />
+
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:image" content="https://aeverj.github.io/logo.png"/>
+
+<meta name="twitter:title" content="C#中利用Syscall免杀 v1.0"/>
+<meta name="twitter:description" content="在ring3利用直接系统调用来绕过杀软对敏感函数的Hook"/>
+<meta name="application-name" content="LoveIt">
+<meta name="apple-mobile-web-app-title" content="LoveIt"><meta name="theme-color" content="#ffffff"><meta name="msapplication-TileColor" content="#da532c"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5"><link rel="manifest" href="/site.webmanifest"><link rel="canonical" href="https://aeverj.github.io/posts/csharp%E4%B8%AD%E5%88%A9%E7%94%A8syscall-%E5%85%8D%E6%9D%80/" /><link rel="stylesheet" href="/lib/normalize/normalize.min.css"><link rel="stylesheet" href="/css/style.min.css"><link rel="stylesheet" href="/lib/fontawesome-free/all.min.css"><link rel="stylesheet" href="/lib/animate/animate.min.css"><script type="application/ld+json">
+    {
+        "@context": "http://schema.org",
+        "@type": "BlogPosting",
+        "headline": "C#中利用Syscall免杀 v1.0",
+        "inLanguage": "zh-CN",
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": "https:\/\/aeverj.github.io\/posts\/csharp%E4%B8%AD%E5%88%A9%E7%94%A8syscall-%E5%85%8D%E6%9D%80\/"
+        },"genre": "posts","keywords": "免杀, .net, syscall, pinvoke, dinvoke","wordcount":  2069 ,
+        "url": "https:\/\/aeverj.github.io\/posts\/csharp%E4%B8%AD%E5%88%A9%E7%94%A8syscall-%E5%85%8D%E6%9D%80\/","datePublished": "2022-02-13T00:00:00+08:00","dateModified": "2022-02-13T00:00:00+08:00","license": "This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.","publisher": {
+            "@type": "Organization",
+            "name": "aeverj"},"author": {
+                "@type": "Person",
+                "name": "aeverj"
+            },"description": ""
+    }
+    </script></head>
+    <body header-desktop="fixed" header-mobile="auto"><script type="text/javascript">(window.localStorage && localStorage.getItem('theme') ? localStorage.getItem('theme') === 'dark' : ('' === 'auto' ? window.matchMedia('(prefers-color-scheme: dark)').matches : '' === 'dark')) && document.body.setAttribute('theme', 'dark');</script>
+
+        <div id="mask"></div><div class="wrapper"><header class="desktop" id="header-desktop">
+    <div class="header-wrapper">
+        <div class="header-title">
+            <a href="/" title="aeverj&#39;s blog"><span class="header-title-pre"><i class='far fa-kiss-wink-heart fa-fw'></i></span><span id="id-1" class="typeit"></span></a>
+        </div>
+        <div class="menu">
+            <div class="menu-inner"><a class="menu-item" href="/posts/"> 所有文章 </a><a class="menu-item" href="/tags/"> 标签 </a><a class="menu-item" href="/categories/"> 分类 </a><a class="menu-item" href="/about/"> 关于 </a><a class="menu-item" href="https://github.com/aeverj" title="GitHub" rel="noopener noreffer" target="_blank"><i class='fab fa-github fa-fw'></i>  </a><span class="menu-item delimiter"></span><a href="javascript:void(0);" class="menu-item theme-switch" title="切换主题">
+                    <i class="fas fa-adjust fa-fw"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</header><header class="mobile" id="header-mobile">
+    <div class="header-container">
+        <div class="header-wrapper">
+            <div class="header-title">
+                <a href="/" title="aeverj&#39;s blog"><span class="header-title-pre"><i class='far fa-kiss-wink-heart fa-fw'></i></span><span id="id-2" class="typeit"></span></a>
+            </div>
+            <div class="menu-toggle" id="menu-toggle-mobile">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
+        <div class="menu" id="menu-mobile"><a class="menu-item" href="/posts/" title="">所有文章</a><a class="menu-item" href="/tags/" title="">标签</a><a class="menu-item" href="/categories/" title="">分类</a><a class="menu-item" href="/about/" title="">关于</a><a class="menu-item" href="https://github.com/aeverj" title="GitHub" rel="noopener noreffer" target="_blank"><i class='fab fa-github fa-fw'></i></a><a href="javascript:void(0);" class="menu-item theme-switch" title="切换主题">
+                <i class="fas fa-adjust fa-fw"></i>
+            </a></div>
+    </div>
+</header>
+<div class="search-dropdown desktop">
+    <div id="search-dropdown-desktop"></div>
+</div>
+<div class="search-dropdown mobile">
+    <div id="search-dropdown-mobile"></div>
+</div>
+<main class="main">
+                <div class="container"><div class="toc" id="toc-auto">
+            <h2 class="toc-title">目录</h2>
+            <div class="toc-content" id="toc-content-auto"></div>
+        </div><article class="page single"><h1 class="single-title animated flipInX">C#中利用Syscall免杀 v1.0</h1><div class="post-meta">
+            <div class="post-meta-line"><span class="post-author"><a href="/" title="Author" rel=" author" class="author"><i class="fas fa-user-circle fa-fw"></i>aeverj</a></span>&nbsp;<span class="post-category">收录于 <a href="/categories/%E7%BA%A2%E9%98%9F%E6%94%BB%E9%98%B2/"><i class="far fa-folder fa-fw"></i>红队攻防</a></span></div>
+            <div class="post-meta-line"><i class="far fa-calendar-alt fa-fw"></i>&nbsp;<time datetime="2022-02-13">2022-02-13</time>&nbsp;<i class="fas fa-pencil-alt fa-fw"></i>&nbsp;约 2069 字&nbsp;
+                <i class="far fa-clock fa-fw"></i>&nbsp;预计阅读 5 分钟&nbsp;</div>
+        </div><div class="details toc" id="toc-static"  kept="">
+                <div class="details-summary toc-title">
+                    <span>目录</span>
+                    <span><i class="details-icon fas fa-angle-right"></i></span>
+                </div>
+                <div class="details-content toc-content" id="toc-content-static"><nav id="TableOfContents">
+  <ul>
+    <li><a href="#背景">背景</a></li>
+    <li><a href="#了解syscall">了解syscall</a></li>
+    <li><a href="#c中使用pinvoke调用createfile">C#中使用pinvoke调用CreateFile</a></li>
+    <li><a href="#c中dinvoke">C#中dinvoke</a>
+      <ul>
+        <li><a href="#0-步骤">0. 步骤</a></li>
+        <li><a href="#1-定义所需的结构体和枚举类型">1. 定义所需的结构体和枚举类型</a></li>
+        <li><a href="#2-保存syscall字节码">2. 保存syscall字节码</a></li>
+        <li><a href="#3-将字节码拷贝到非托管内存">3. 将字节码拷贝到非托管内存</a></li>
+        <li><a href="#4-定义ntcreatefile委托类型">4. 定义<code>NtCreateFile</code>委托类型</a></li>
+        <li><a href="#5-实例化ntcreatefile委托">5. 实例化<code>NtCreateFile</code>委托</a></li>
+        <li><a href="#6-初始化变量并调用委托">6. 初始化变量并调用委托</a></li>
+      </ul>
+    </li>
+    <li><a href="#实现效果">实现效果</a></li>
+    <li><a href="#代码">代码</a></li>
+    <li><a href="#总结">总结</a></li>
+  </ul>
+</nav></div>
+            </div><div class="content" id="content"><p>在ring3利用直接系统调用来绕过杀软对敏感函数的Hook</p>
+<h2 id="背景">背景</h2>
+<ol>
+<li>在x64中使用<code>syscall</code>从ring3进入ring0</li>
+<li>我们可以通过C#自己重写ring3函数进行直接系统调用</li>
+<li>C#中调用非托管内存需要进行一定的转换</li>
+</ol>
+<h2 id="了解syscall">了解syscall</h2>
+<p>window的大多用户活动常常发生在ring3，与win系统的api交互常常往返于ring0于ring3之间，例如创建文件的api<code>CreateFile</code><br>
+我们在本地进行测试，代码如下</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-CPP" data-lang="CPP"><span class="n">CreateFile</span><span class="p">(</span><span class="sa">L</span><span class="s">&#34;1789456.txt&#34;</span><span class="p">,</span> <span class="n">GENERIC_READ</span><span class="p">,</span> <span class="n">FILE_SHARE_READ</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">,</span> <span class="n">CREATE_NEW</span><span class="p">,</span> <span class="n">FILE_ATTRIBUTE_NORMAL</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">);</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>使用<code>Procmon64.exe</code>可以监控到代码从ring3走到ring0的过程，如下图：
+<figure><a class="lightgallery" href="/images/createfilestack.png" title="/images/createfilestack.png" data-thumbnail="/images/createfilestack.png" data-sub-html="<h2>CreateFile的调用过程</h2>">
+        <img
+            class="lazyload"
+            src="/svg/loading.min.svg"
+            data-src="/images/createfilestack.png"
+            data-srcset="/images/createfilestack.png, /images/createfilestack.png 1.5x, /images/createfilestack.png 2x"
+            data-sizes="auto"
+            alt="/images/createfilestack.png" width="5000" />
+    </a><figcaption class="image-caption">CreateFile的调用过程</figcaption>
+    </figure>
+在第十行从用户模式进入内核模式，最后一个调用的函数为<code>NtCreateFile</code>，我们可以看看<code>NtCreateFile</code>的汇编代码</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-asm" data-lang="asm"><span class="err">0:008&gt;</span> <span class="nf">u</span> <span class="no">NtCreateFile</span> <span class="no">l12</span>
+<span class="nf">ntdll</span><span class="p">!</span><span class="no">NtCreateFile</span><span class="p">:</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd4c41e0</span> <span class="mi">4</span><span class="no">c8bd1</span>          <span class="no">mov</span>     <span class="no">r10</span><span class="p">,</span><span class="no">rcx</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd4c41e3</span> <span class="no">b855000000</span>      <span class="no">mov</span>     <span class="no">eax</span><span class="p">,</span><span class="mi">55</span><span class="no">h</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd4c41e8</span> <span class="no">f604250803fe7f01</span> <span class="no">test</span>    <span class="no">byte</span> <span class="no">ptr</span> <span class="p">[</span><span class="no">SharedUserData</span><span class="err">+</span><span class="mi">0x308</span> <span class="p">(</span><span class="mi">00000000</span><span class="err">`</span><span class="mi">7</span><span class="no">ffe0308</span><span class="p">)],</span><span class="mi">1</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd4c41f0</span> <span class="mi">7503</span>            <span class="no">jne</span>     <span class="no">ntdll</span><span class="p">!</span><span class="no">NtCreateFile</span><span class="err">+</span><span class="mi">0x15</span> <span class="p">(</span><span class="mi">00007</span><span class="no">ffa</span><span class="err">`</span><span class="no">fd4c41f5</span><span class="p">)</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd4c41f2</span> <span class="mi">0</span><span class="no">f05</span>            <span class="no">syscall</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd4c41f4</span> <span class="no">c3</span>              <span class="no">ret</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd4c41f5</span> <span class="no">cd2e</span>            <span class="no">int</span>     <span class="mi">2</span><span class="no">Eh</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd4c41f7</span> <span class="no">c3</span>              <span class="no">ret</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd4c41f8</span> <span class="mi">0</span><span class="no">f1f840000000000</span> <span class="no">nop</span>     <span class="no">dword</span> <span class="no">ptr</span> <span class="p">[</span><span class="no">rax</span><span class="err">+</span><span class="no">rax</span><span class="p">]</span>
+<span class="nf">ntdll</span><span class="p">!</span><span class="no">NtQueryEvent</span><span class="p">:</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd4c4200</span> <span class="mi">4</span><span class="no">c8bd1</span>          <span class="no">mov</span>     <span class="no">r10</span><span class="p">,</span><span class="no">rcx</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd4c4203</span> <span class="no">b856000000</span>      <span class="no">mov</span>     <span class="no">eax</span><span class="p">,</span><span class="mi">56</span><span class="no">h</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd4c4208</span> <span class="no">f604250803fe7f01</span> <span class="no">test</span>    <span class="no">byte</span> <span class="no">ptr</span> <span class="p">[</span><span class="no">SharedUserData</span><span class="err">+</span><span class="mi">0x308</span> <span class="p">(</span><span class="mi">00000000</span><span class="err">`</span><span class="mi">7</span><span class="no">ffe0308</span><span class="p">)],</span><span class="mi">1</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd4c4210</span> <span class="mi">7503</span>            <span class="no">jne</span>     <span class="no">ntdll</span><span class="p">!</span><span class="no">NtQueryEvent</span><span class="err">+</span><span class="mi">0x15</span> <span class="p">(</span><span class="mi">00007</span><span class="no">ffa</span><span class="err">`</span><span class="no">fd4c4215</span><span class="p">)</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd4c4212</span> <span class="mi">0</span><span class="no">f05</span>            <span class="no">syscall</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd4c4214</span> <span class="no">c3</span>              <span class="no">ret</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd4c4215</span> <span class="no">cd2e</span>            <span class="no">int</span>     <span class="mi">2</span><span class="no">Eh</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd4c4217</span> <span class="no">c3</span>              <span class="no">ret</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd4c4218</span> <span class="mi">0</span><span class="no">f1f840000000000</span> <span class="no">nop</span>     <span class="no">dword</span> <span class="no">ptr</span> <span class="p">[</span><span class="no">rax</span><span class="err">+</span><span class="no">rax</span><span class="p">]</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>其中最基本的汇编代码如下</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-asm" data-lang="asm"><span class="nf">mov</span> <span class="no">r10</span><span class="p">,</span><span class="no">rcx</span>
+<span class="nf">mov</span> <span class="no">eax</span><span class="p">,</span><span class="mi">55</span><span class="no">h</span>
+<span class="nf">syscall</span>
+<span class="nf">ret</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>上面的<code>55h</code>为<code>NtCreateFile</code>在win10中的系统调用号，同理<code>56h</code>为<code>NtQueryEvent</code>的系统调用号，这个编号在不同系统中是不同的，可以查看<a href="https://j00ru.vexillium.org/syscalls/nt/64/" target="_blank" rel="noopener noreffer">x64系统调用表</a></p>
+<h2 id="c中使用pinvoke调用createfile">C#中使用pinvoke调用CreateFile</h2>
+<p>在C#中调用native代码，常常需要通过pinvoke，下面的代码是在C#中调用native的CreateFile函数</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-cs" data-lang="cs"><span class="na">[DllImport(&#34;Kernel32.dll&#34;, SetLastError = true, CharSet = CharSet.Auto)]</span>
+<span class="k">static</span> <span class="k">extern</span> <span class="n">SafeFileHandle</span> <span class="n">CreateFile</span><span class="p">(</span>
+    <span class="kt">string</span> <span class="n">fileName</span><span class="p">,</span>
+<span class="na">    [MarshalAs(UnmanagedType.U4)]</span> <span class="n">FileAccess</span> <span class="n">fileAccess</span><span class="p">,</span>
+<span class="na">    [MarshalAs(UnmanagedType.U4)]</span> <span class="n">FileShare</span> <span class="n">fileShare</span><span class="p">,</span>
+    <span class="n">IntPtr</span> <span class="n">securityAttributes</span><span class="p">,</span>
+<span class="na">    [MarshalAs(UnmanagedType.U4)]</span> <span class="n">FileMode</span> <span class="n">creationDisposition</span><span class="p">,</span>
+    <span class="kt">int</span> <span class="n">flags</span><span class="p">,</span>
+    <span class="n">IntPtr</span> <span class="n">template</span><span class="p">);</span>
+<span class="k">static</span> <span class="k">void</span> <span class="n">Main</span><span class="p">(</span><span class="kt">string</span><span class="p">[]</span> <span class="n">args</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="kt">string</span> <span class="n">FileName</span> <span class="p">=</span> <span class="s">&#34;123456789.txt&#34;</span><span class="p">;</span>
+    <span class="n">SafeFileHandle</span> <span class="n">drive</span> <span class="p">=</span> <span class="n">CreateFile</span><span class="p">(</span><span class="n">fileName</span><span class="p">:</span> <span class="n">FileName</span><span class="p">,</span>
+              <span class="n">fileAccess</span><span class="p">:</span> <span class="n">FileAccess</span><span class="p">.</span><span class="n">Read</span><span class="p">,</span>
+              <span class="n">fileShare</span><span class="p">:</span> <span class="n">FileShare</span><span class="p">.</span><span class="n">Write</span> <span class="p">|</span> <span class="n">FileShare</span><span class="p">.</span><span class="n">Read</span> <span class="p">|</span> <span class="n">FileShare</span><span class="p">.</span><span class="n">Delete</span><span class="p">,</span>
+              <span class="n">securityAttributes</span><span class="p">:</span> <span class="n">IntPtr</span><span class="p">.</span><span class="n">Zero</span><span class="p">,</span>
+              <span class="n">creationDisposition</span><span class="p">:</span> <span class="n">FileMode</span><span class="p">.</span><span class="n">CreateNew</span><span class="p">,</span>
+              <span class="n">flags</span><span class="p">:</span> <span class="m">4</span><span class="p">,</span> <span class="c1">//with this also an enum can be used. (as described above as EFileAttributes)
+</span><span class="c1"></span>              <span class="n">template</span><span class="p">:</span> <span class="n">IntPtr</span><span class="p">.</span><span class="n">Zero</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>下一步使用dinvoke调用<code>NtCreateFile</code></p>
+<h2 id="c中dinvoke">C#中dinvoke</h2>
+<h3 id="0-步骤">0. 步骤</h3>
+<ol>
+<li>首先定义所需结构体和枚举类型</li>
+<li>保存syscall字节码</li>
+<li>申请非托管内存，并设定内存属性为可读可写可执行(<code>演示功能，实战免杀不可用</code>),将字节码拷贝到内存中</li>
+<li>定义<code>NtCreateFile</code>类型委托</li>
+<li>利用<code>Marshal.GetDelegateForFunctionPointer</code>将<code>NtCreateFile</code>委托实例化</li>
+<li>初始化调用函数所需变量并调用委托</li>
+</ol>
+<h3 id="1-定义所需的结构体和枚举类型">1. 定义所需的结构体和枚举类型</h3>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">  1
+</span><span class="lnt">  2
+</span><span class="lnt">  3
+</span><span class="lnt">  4
+</span><span class="lnt">  5
+</span><span class="lnt">  6
+</span><span class="lnt">  7
+</span><span class="lnt">  8
+</span><span class="lnt">  9
+</span><span class="lnt"> 10
+</span><span class="lnt"> 11
+</span><span class="lnt"> 12
+</span><span class="lnt"> 13
+</span><span class="lnt"> 14
+</span><span class="lnt"> 15
+</span><span class="lnt"> 16
+</span><span class="lnt"> 17
+</span><span class="lnt"> 18
+</span><span class="lnt"> 19
+</span><span class="lnt"> 20
+</span><span class="lnt"> 21
+</span><span class="lnt"> 22
+</span><span class="lnt"> 23
+</span><span class="lnt"> 24
+</span><span class="lnt"> 25
+</span><span class="lnt"> 26
+</span><span class="lnt"> 27
+</span><span class="lnt"> 28
+</span><span class="lnt"> 29
+</span><span class="lnt"> 30
+</span><span class="lnt"> 31
+</span><span class="lnt"> 32
+</span><span class="lnt"> 33
+</span><span class="lnt"> 34
+</span><span class="lnt"> 35
+</span><span class="lnt"> 36
+</span><span class="lnt"> 37
+</span><span class="lnt"> 38
+</span><span class="lnt"> 39
+</span><span class="lnt"> 40
+</span><span class="lnt"> 41
+</span><span class="lnt"> 42
+</span><span class="lnt"> 43
+</span><span class="lnt"> 44
+</span><span class="lnt"> 45
+</span><span class="lnt"> 46
+</span><span class="lnt"> 47
+</span><span class="lnt"> 48
+</span><span class="lnt"> 49
+</span><span class="lnt"> 50
+</span><span class="lnt"> 51
+</span><span class="lnt"> 52
+</span><span class="lnt"> 53
+</span><span class="lnt"> 54
+</span><span class="lnt"> 55
+</span><span class="lnt"> 56
+</span><span class="lnt"> 57
+</span><span class="lnt"> 58
+</span><span class="lnt"> 59
+</span><span class="lnt"> 60
+</span><span class="lnt"> 61
+</span><span class="lnt"> 62
+</span><span class="lnt"> 63
+</span><span class="lnt"> 64
+</span><span class="lnt"> 65
+</span><span class="lnt"> 66
+</span><span class="lnt"> 67
+</span><span class="lnt"> 68
+</span><span class="lnt"> 69
+</span><span class="lnt"> 70
+</span><span class="lnt"> 71
+</span><span class="lnt"> 72
+</span><span class="lnt"> 73
+</span><span class="lnt"> 74
+</span><span class="lnt"> 75
+</span><span class="lnt"> 76
+</span><span class="lnt"> 77
+</span><span class="lnt"> 78
+</span><span class="lnt"> 79
+</span><span class="lnt"> 80
+</span><span class="lnt"> 81
+</span><span class="lnt"> 82
+</span><span class="lnt"> 83
+</span><span class="lnt"> 84
+</span><span class="lnt"> 85
+</span><span class="lnt"> 86
+</span><span class="lnt"> 87
+</span><span class="lnt"> 88
+</span><span class="lnt"> 89
+</span><span class="lnt"> 90
+</span><span class="lnt"> 91
+</span><span class="lnt"> 92
+</span><span class="lnt"> 93
+</span><span class="lnt"> 94
+</span><span class="lnt"> 95
+</span><span class="lnt"> 96
+</span><span class="lnt"> 97
+</span><span class="lnt"> 98
+</span><span class="lnt"> 99
+</span><span class="lnt">100
+</span><span class="lnt">101
+</span><span class="lnt">102
+</span><span class="lnt">103
+</span><span class="lnt">104
+</span><span class="lnt">105
+</span><span class="lnt">106
+</span><span class="lnt">107
+</span><span class="lnt">108
+</span><span class="lnt">109
+</span><span class="lnt">110
+</span><span class="lnt">111
+</span><span class="lnt">112
+</span><span class="lnt">113
+</span><span class="lnt">114
+</span><span class="lnt">115
+</span><span class="lnt">116
+</span><span class="lnt">117
+</span><span class="lnt">118
+</span><span class="lnt">119
+</span><span class="lnt">120
+</span><span class="lnt">121
+</span><span class="lnt">122
+</span><span class="lnt">123
+</span><span class="lnt">124
+</span><span class="lnt">125
+</span><span class="lnt">126
+</span><span class="lnt">127
+</span><span class="lnt">128
+</span><span class="lnt">129
+</span><span class="lnt">130
+</span><span class="lnt">131
+</span><span class="lnt">132
+</span><span class="lnt">133
+</span><span class="lnt">134
+</span><span class="lnt">135
+</span><span class="lnt">136
+</span><span class="lnt">137
+</span><span class="lnt">138
+</span><span class="lnt">139
+</span><span class="lnt">140
+</span><span class="lnt">141
+</span><span class="lnt">142
+</span><span class="lnt">143
+</span><span class="lnt">144
+</span><span class="lnt">145
+</span><span class="lnt">146
+</span><span class="lnt">147
+</span><span class="lnt">148
+</span><span class="lnt">149
+</span><span class="lnt">150
+</span><span class="lnt">151
+</span><span class="lnt">152
+</span><span class="lnt">153
+</span><span class="lnt">154
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-cs" data-lang="cs"><span class="k">public</span> <span class="k">enum</span> <span class="n">AllocationProtect</span> <span class="p">:</span> <span class="kt">uint</span>
+<span class="p">{</span>
+    <span class="n">PAGE_EXECUTE</span> <span class="p">=</span> <span class="m">0x00000010</span><span class="p">,</span>
+    <span class="n">PAGE_EXECUTE_READ</span> <span class="p">=</span> <span class="m">0x00000020</span><span class="p">,</span>
+    <span class="n">PAGE_EXECUTE_READWRITE</span> <span class="p">=</span> <span class="m">0x00000040</span><span class="p">,</span>
+    <span class="n">PAGE_EXECUTE_WRITECOPY</span> <span class="p">=</span> <span class="m">0x00000080</span><span class="p">,</span>
+    <span class="n">PAGE_NOACCESS</span> <span class="p">=</span> <span class="m">0x00000001</span><span class="p">,</span>
+    <span class="n">PAGE_READONLY</span> <span class="p">=</span> <span class="m">0x00000002</span><span class="p">,</span>
+    <span class="n">PAGE_READWRITE</span> <span class="p">=</span> <span class="m">0x00000004</span><span class="p">,</span>
+    <span class="n">PAGE_WRITECOPY</span> <span class="p">=</span> <span class="m">0x00000008</span><span class="p">,</span>
+    <span class="n">PAGE_GUARD</span> <span class="p">=</span> <span class="m">0x00000100</span><span class="p">,</span>
+    <span class="n">PAGE_NOCACHE</span> <span class="p">=</span> <span class="m">0x00000200</span><span class="p">,</span>
+    <span class="n">PAGE_WRITECOMBINE</span> <span class="p">=</span> <span class="m">0x00000400</span>
+<span class="p">}</span>
+<span class="k">public</span> <span class="k">enum</span> <span class="n">FileAttributes</span> <span class="p">:</span> <span class="kt">uint</span>
+<span class="p">{</span>
+    <span class="n">ReadOnly</span> <span class="p">=</span> <span class="m">0x00000001</span><span class="p">,</span>
+    <span class="n">Hidden</span> <span class="p">=</span> <span class="m">0x00000002</span><span class="p">,</span>
+    <span class="n">System</span> <span class="p">=</span> <span class="m">0x00000004</span><span class="p">,</span>
+    <span class="n">Directory</span> <span class="p">=</span> <span class="m">0x00000010</span><span class="p">,</span>
+    <span class="n">Archive</span> <span class="p">=</span> <span class="m">0x00000020</span><span class="p">,</span>
+    <span class="n">Device</span> <span class="p">=</span> <span class="m">0x00000040</span><span class="p">,</span>
+    <span class="n">Normal</span> <span class="p">=</span> <span class="m">0x00000080</span><span class="p">,</span>
+    <span class="n">Temporary</span> <span class="p">=</span> <span class="m">0x00000100</span><span class="p">,</span>
+    <span class="n">SparseFile</span> <span class="p">=</span> <span class="m">0x00000200</span><span class="p">,</span>
+    <span class="n">ReparsePoint</span> <span class="p">=</span> <span class="m">0x00000400</span><span class="p">,</span>
+    <span class="n">Compressed</span> <span class="p">=</span> <span class="m">0x00000800</span><span class="p">,</span>
+    <span class="n">Offline</span> <span class="p">=</span> <span class="m">0x00001000</span><span class="p">,</span>
+    <span class="n">NotContentIndexed</span> <span class="p">=</span> <span class="m">0x00002000</span><span class="p">,</span>
+    <span class="n">Encrypted</span> <span class="p">=</span> <span class="m">0x00004000</span><span class="p">,</span>
+    <span class="n">Write_Through</span> <span class="p">=</span> <span class="m">0x80000000</span><span class="p">,</span>
+    <span class="n">Overlapped</span> <span class="p">=</span> <span class="m">0x40000000</span><span class="p">,</span>
+    <span class="n">NoBuffering</span> <span class="p">=</span> <span class="m">0x20000000</span><span class="p">,</span>
+    <span class="n">RandomAccess</span> <span class="p">=</span> <span class="m">0x10000000</span><span class="p">,</span>
+    <span class="n">SequentialScan</span> <span class="p">=</span> <span class="m">0x08000000</span><span class="p">,</span>
+    <span class="n">DeleteOnClose</span> <span class="p">=</span> <span class="m">0x04000000</span><span class="p">,</span>
+    <span class="n">BackupSemantics</span> <span class="p">=</span> <span class="m">0x02000000</span><span class="p">,</span>
+    <span class="n">PosixSemantics</span> <span class="p">=</span> <span class="m">0x01000000</span><span class="p">,</span>
+    <span class="n">OpenReparsePoint</span> <span class="p">=</span> <span class="m">0x00200000</span><span class="p">,</span>
+    <span class="n">OpenNoRecall</span> <span class="p">=</span> <span class="m">0x00100000</span><span class="p">,</span>
+    <span class="n">FirstPipeInstance</span> <span class="p">=</span> <span class="m">0x00080000</span>
+<span class="p">}</span>
+<span class="na">[Flags]</span>
+<span class="k">public</span> <span class="k">enum</span> <span class="n">FileShare</span> <span class="p">:</span> <span class="kt">uint</span>
+<span class="p">{</span>
+    <span class="n">None</span> <span class="p">=</span> <span class="m">0x00000000</span><span class="p">,</span>
+    <span class="n">Read</span> <span class="p">=</span> <span class="m">0x00000001</span><span class="p">,</span>
+    <span class="n">Write</span> <span class="p">=</span> <span class="m">0x00000002</span><span class="p">,</span>
+    <span class="n">Delete</span> <span class="p">=</span> <span class="m">0x00000004</span>
+<span class="p">}</span>
+<span class="na">[Flags]</span>
+<span class="k">internal</span> <span class="k">enum</span> <span class="n">CreationDisposition</span> <span class="p">:</span> <span class="kt">uint</span>
+<span class="p">{</span>
+    <span class="n">FILE_SUPERSEDE</span> <span class="p">=</span> <span class="m">0</span><span class="p">,</span>
+    <span class="n">FILE_OPEN</span> <span class="p">=</span> <span class="m">1</span><span class="p">,</span>
+    <span class="n">FILE_CREATE</span> <span class="p">=</span> <span class="m">2</span><span class="p">,</span>
+    <span class="n">FILE_OPEN_IF</span> <span class="p">=</span> <span class="m">3</span><span class="p">,</span>
+    <span class="n">FILE_OVERWRITE</span> <span class="p">=</span> <span class="m">4</span><span class="p">,</span>
+    <span class="n">FILE_OVERWRITE_IF</span> <span class="p">=</span> <span class="m">5</span>
+<span class="p">}</span>
+<span class="na">[Flags]</span>
+<span class="k">public</span> <span class="k">enum</span> <span class="n">CreateOption</span> <span class="p">:</span> <span class="kt">uint</span>
+<span class="p">{</span>
+    <span class="n">FILE_WRITE_THROUGH</span> <span class="p">=</span> <span class="m">0x00000002</span><span class="p">,</span>
+    <span class="n">FILE_SEQUENTIAL_ONLY</span> <span class="p">=</span> <span class="m">0x00000004</span><span class="p">,</span>
+    <span class="n">FILE_NO_INTERMEDIATE_BUFFERING</span> <span class="p">=</span> <span class="m">0x00000008</span><span class="p">,</span>
+    <span class="n">FILE_SYNCHRONOUS_IO_NONALERT</span> <span class="p">=</span> <span class="m">0x00000020</span><span class="p">,</span>
+    <span class="n">FILE_RANDOM_ACCESS</span> <span class="p">=</span> <span class="m">0x00000800</span>
+<span class="p">}</span>
+<span class="na">[StructLayout(LayoutKind.Sequential, Pack = 0)]</span>
+<span class="k">public</span> <span class="k">struct</span> <span class="nc">IO_STATUS_BLOCK</span>
+<span class="p">{</span>
+    <span class="k">public</span> <span class="kt">uint</span> <span class="n">status</span><span class="p">;</span>
+    <span class="k">public</span> <span class="n">IntPtr</span> <span class="n">information</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="na">
+</span><span class="na">[StructLayout(LayoutKind.Sequential, Pack = 0)]</span>
+<span class="k">public</span> <span class="k">struct</span> <span class="nc">OBJECT_ATTRIBUTES</span>
+<span class="p">{</span>
+    <span class="k">public</span> <span class="n">Int32</span> <span class="n">Length</span><span class="p">;</span>
+    <span class="k">public</span> <span class="n">IntPtr</span> <span class="n">RootDirectory</span><span class="p">;</span>
+    <span class="k">public</span> <span class="n">IntPtr</span> <span class="n">ObjectName</span><span class="p">;</span>
+    <span class="k">public</span> <span class="kt">uint</span> <span class="n">Attributes</span><span class="p">;</span>
+    <span class="k">public</span> <span class="n">IntPtr</span> <span class="n">SecurityDescriptor</span><span class="p">;</span>
+    <span class="k">public</span> <span class="n">IntPtr</span> <span class="n">SecurityQualityOfService</span><span class="p">;</span>
+
+<span class="p">}</span>
+<span class="na">[Flags]</span>
+<span class="k">public</span> <span class="k">enum</span> <span class="n">FileAccess</span> <span class="p">:</span> <span class="kt">uint</span>
+<span class="p">{</span>
+    <span class="n">AccessSystemSecurity</span> <span class="p">=</span> <span class="m">0x1000000</span><span class="p">,</span>
+    <span class="n">MaximumAllowed</span> <span class="p">=</span> <span class="m">0x2000000</span><span class="p">,</span>
+
+    <span class="n">Delete</span> <span class="p">=</span> <span class="m">0x10000</span><span class="p">,</span>
+    <span class="n">ReadControl</span> <span class="p">=</span> <span class="m">0x20000</span><span class="p">,</span>
+    <span class="n">WriteDAC</span> <span class="p">=</span> <span class="m">0x40000</span><span class="p">,</span>
+    <span class="n">WriteOwner</span> <span class="p">=</span> <span class="m">0x80000</span><span class="p">,</span>
+    <span class="n">Synchronize</span> <span class="p">=</span> <span class="m">0x100000</span><span class="p">,</span>
+
+    <span class="n">StandardRightsRequired</span> <span class="p">=</span> <span class="m">0xF0000</span><span class="p">,</span>
+    <span class="n">StandardRightsRead</span> <span class="p">=</span> <span class="n">ReadControl</span><span class="p">,</span>
+    <span class="n">StandardRightsWrite</span> <span class="p">=</span> <span class="n">ReadControl</span><span class="p">,</span>
+    <span class="n">StandardRightsExecute</span> <span class="p">=</span> <span class="n">ReadControl</span><span class="p">,</span>
+    <span class="n">StandardRightsAll</span> <span class="p">=</span> <span class="m">0x1F0000</span><span class="p">,</span>
+    <span class="n">SpecificRightsAll</span> <span class="p">=</span> <span class="m">0xFFFF</span><span class="p">,</span>
+
+    <span class="n">FILE_READ_DATA</span> <span class="p">=</span> <span class="m">0x0001</span><span class="p">,</span>
+    <span class="n">FILE_LIST_DIRECTORY</span> <span class="p">=</span> <span class="m">0x0001</span><span class="p">,</span>
+    <span class="n">FILE_WRITE_DATA</span> <span class="p">=</span> <span class="m">0x0002</span><span class="p">,</span>
+    <span class="n">FILE_ADD_FILE</span> <span class="p">=</span> <span class="m">0x0002</span><span class="p">,</span>
+    <span class="n">FILE_APPEND_DATA</span> <span class="p">=</span> <span class="m">0x0004</span><span class="p">,</span>
+    <span class="n">FILE_ADD_SUBDIRECTORY</span> <span class="p">=</span> <span class="m">0x0004</span><span class="p">,</span>
+    <span class="n">FILE_CREATE_PIPE_INSTANCE</span> <span class="p">=</span> <span class="m">0x0004</span><span class="p">,</span>
+    <span class="n">FILE_READ_EA</span> <span class="p">=</span> <span class="m">0x0008</span><span class="p">,</span>
+    <span class="n">FILE_WRITE_EA</span> <span class="p">=</span> <span class="m">0x0010</span><span class="p">,</span>
+    <span class="n">FILE_EXECUTE</span> <span class="p">=</span> <span class="m">0x0020</span><span class="p">,</span>
+    <span class="n">FILE_TRAVERSE</span> <span class="p">=</span> <span class="m">0x0020</span><span class="p">,</span>
+    <span class="n">FILE_DELETE_CHILD</span> <span class="p">=</span> <span class="m">0x0040</span><span class="p">,</span>
+    <span class="n">FILE_READ_ATTRIBUTES</span> <span class="p">=</span> <span class="m">0x0080</span><span class="p">,</span>
+    <span class="n">FILE_WRITE_ATTRIBUTES</span> <span class="p">=</span> <span class="m">0x0100</span><span class="p">,</span>
+
+    <span class="c1">//
+</span><span class="c1"></span>    <span class="c1">// Generic Section
+</span><span class="c1"></span>    <span class="c1">//
+</span><span class="c1"></span>
+    <span class="n">GenericRead</span> <span class="p">=</span> <span class="m">0x80000000</span><span class="p">,</span>
+    <span class="n">GenericWrite</span> <span class="p">=</span> <span class="m">0x40000000</span><span class="p">,</span>
+    <span class="n">GenericExecute</span> <span class="p">=</span> <span class="m">0x20000000</span><span class="p">,</span>
+    <span class="n">GenericAll</span> <span class="p">=</span> <span class="m">0x10000000</span><span class="p">,</span>
+
+    <span class="n">SPECIFIC_RIGHTS_ALL</span> <span class="p">=</span> <span class="m">0x00FFFF</span><span class="p">,</span>
+    <span class="n">FILE_ALL_ACCESS</span> <span class="p">=</span>
+    <span class="n">StandardRightsRequired</span> <span class="p">|</span>
+    <span class="n">Synchronize</span> <span class="p">|</span>
+    <span class="m">0x1FF</span><span class="p">,</span>
+
+    <span class="n">FILE_GENERIC_READ</span> <span class="p">=</span> <span class="n">StandardRightsRead</span> <span class="p">|</span>
+        <span class="n">FILE_READ_DATA</span> <span class="p">|</span>
+        <span class="n">FILE_READ_ATTRIBUTES</span> <span class="p">|</span>
+        <span class="n">FILE_READ_EA</span> <span class="p">|</span>
+        <span class="n">Synchronize</span><span class="p">,</span>
+
+    <span class="n">FILE_GENERIC_WRITE</span> <span class="p">=</span> <span class="n">StandardRightsWrite</span> <span class="p">|</span>
+        <span class="n">FILE_WRITE_DATA</span> <span class="p">|</span>
+        <span class="n">FILE_WRITE_ATTRIBUTES</span> <span class="p">|</span>
+        <span class="n">FILE_WRITE_EA</span> <span class="p">|</span>
+        <span class="n">FILE_APPEND_DATA</span> <span class="p">|</span>
+        <span class="n">Synchronize</span><span class="p">,</span>
+
+    <span class="n">FILE_GENERIC_EXECUTE</span> <span class="p">=</span> <span class="n">StandardRightsExecute</span> <span class="p">|</span>
+      <span class="n">FILE_READ_ATTRIBUTES</span> <span class="p">|</span>
+      <span class="n">FILE_EXECUTE</span> <span class="p">|</span>
+      <span class="n">Synchronize</span>
+<span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><h3 id="2-保存syscall字节码">2. 保存syscall字节码</h3>
+<p>汇编代码在上面已经展示出来，下面将汇编代码保存到C#中，由于C#不支持内联汇编，将以字节的形式保存</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-cs" data-lang="cs"><span class="kt">byte</span><span class="p">[]</span> <span class="n">NtCreateFileAsm</span> <span class="p">=</span> <span class="p">{</span>
+    <span class="m">0x4c</span><span class="p">,</span><span class="m">0x8b</span><span class="p">,</span><span class="m">0xd1</span><span class="p">,</span>             <span class="c1">//mov r10,rcx
+</span><span class="c1"></span>    <span class="m">0xb8</span><span class="p">,</span><span class="m">0x55</span><span class="p">,</span><span class="m">0x00</span><span class="p">,</span><span class="m">0x00</span><span class="p">,</span><span class="m">0x00</span><span class="p">,</span>   <span class="c1">//mov eax,55h
+</span><span class="c1"></span>    <span class="m">0x0f</span><span class="p">,</span><span class="m">0x05</span><span class="p">,</span>                  <span class="c1">//syscall
+</span><span class="c1"></span>    <span class="m">0xc3</span>                        <span class="c1">//ret
+</span><span class="c1"></span><span class="p">};</span>
+</code></pre></td></tr></table>
+</div>
+</div><h3 id="3-将字节码拷贝到非托管内存">3. 将字节码拷贝到非托管内存</h3>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-cs" data-lang="cs"><span class="c1">//申请非托管内存，大小为字节码长度
+</span><span class="c1"></span><span class="n">IntPtr</span> <span class="n">ptrAsm</span> <span class="p">=</span> <span class="n">Marshal</span><span class="p">.</span><span class="n">AllocHGlobal</span><span class="p">(</span><span class="n">NtCreateFileAsm</span><span class="p">.</span><span class="n">Length</span><span class="p">);</span>
+<span class="c1">//将申请的内存转为可读可写可执行
+</span><span class="c1"></span><span class="k">if</span> <span class="p">(!</span><span class="n">VirtualProtect</span><span class="p">(</span><span class="n">ptrAsm</span><span class="p">,</span> <span class="p">(</span><span class="n">UIntPtr</span><span class="p">)</span><span class="n">NtCreateFileAsm</span><span class="p">.</span><span class="n">Length</span><span class="p">,</span> <span class="p">(</span><span class="kt">uint</span><span class="p">)</span><span class="n">AllocationProtect</span><span class="p">.</span><span class="n">PAGE_EXECUTE_READWRITE</span><span class="p">,</span> <span class="k">out</span> <span class="kt">uint</span> <span class="n">lpflOldProtect</span><span class="p">))</span>
+<span class="p">{</span>
+    <span class="k">return</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="c1">//将托管内存复制到非托管内存
+</span><span class="c1"></span><span class="n">Marshal</span><span class="p">.</span><span class="n">Copy</span><span class="p">(</span><span class="n">NtCreateFileAsm</span><span class="p">,</span> <span class="m">0</span><span class="p">,</span> <span class="n">ptrAsm</span><span class="p">,</span> <span class="n">NtCreateFileAsm</span><span class="p">.</span><span class="n">Length</span><span class="p">);</span>
+</code></pre></td></tr></table>
+</div>
+</div><h3 id="4-定义ntcreatefile委托类型">4. 定义<code>NtCreateFile</code>委托类型</h3>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-cs" data-lang="cs"><span class="na">[UnmanagedFunctionPointer(CallingConvention.StdCall)]</span>
+<span class="k">public</span> <span class="k">delegate</span> <span class="kt">int</span> <span class="n">NtCreateFile</span><span class="p">(</span>
+        <span class="k">out</span> <span class="n">Microsoft</span><span class="p">.</span><span class="n">Win32</span><span class="p">.</span><span class="n">SafeHandles</span><span class="p">.</span><span class="n">SafeFileHandle</span> <span class="n">FileHandle</span><span class="p">,</span>
+        <span class="n">FileAccess</span> <span class="n">DesiredAcces</span><span class="p">,</span>
+        <span class="k">ref</span> <span class="n">OBJECT_ATTRIBUTES</span> <span class="n">ObjectAttributes</span><span class="p">,</span>
+        <span class="k">ref</span> <span class="n">IO_STATUS_BLOCK</span> <span class="n">IoStatusBlock</span><span class="p">,</span>
+        <span class="k">ref</span> <span class="kt">long</span> <span class="n">AllocationSize</span><span class="p">,</span>
+        <span class="n">FileAttributes</span> <span class="n">FileAttributes</span><span class="p">,</span>
+        <span class="n">FileShare</span> <span class="n">ShareAccess</span><span class="p">,</span>
+        <span class="n">CreationDisposition</span> <span class="n">CreateDisposition</span><span class="p">,</span>
+        <span class="n">CreateOption</span> <span class="n">CreateOptions</span><span class="p">,</span>
+        <span class="n">IntPtr</span> <span class="n">EaBuffer</span><span class="p">,</span>
+        <span class="kt">uint</span> <span class="n">EaLength</span>
+        <span class="p">);</span>
+</code></pre></td></tr></table>
+</div>
+</div><h3 id="5-实例化ntcreatefile委托">5. 实例化<code>NtCreateFile</code>委托</h3>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-cs" data-lang="cs"><span class="n">NtCreateFile</span> <span class="n">NtCreateFileFunc</span> <span class="p">=</span> <span class="p">(</span><span class="n">NtCreateFile</span><span class="p">)</span><span class="n">Marshal</span><span class="p">.</span><span class="n">GetDelegateForFunctionPointer</span><span class="p">(</span><span class="n">ptrAsm</span><span class="p">,</span> <span class="k">typeof</span><span class="p">(</span><span class="n">NtCreateFile</span><span class="p">));</span>
+</code></pre></td></tr></table>
+</div>
+</div><h3 id="6-初始化变量并调用委托">6. 初始化变量并调用委托</h3>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-cs" data-lang="cs"><span class="c1">// 参数初始化
+</span><span class="c1"></span><span class="n">Microsoft</span><span class="p">.</span><span class="n">Win32</span><span class="p">.</span><span class="n">SafeHandles</span><span class="p">.</span><span class="n">SafeFileHandle</span> <span class="n">hFile</span><span class="p">;</span>
+<span class="n">UNICODE_STRING</span> <span class="n">unicodeStringFilename</span> <span class="p">=</span> <span class="k">new</span> <span class="n">UNICODE_STRING</span><span class="p">();</span>
+<span class="n">RtlInitUnicodeString</span><span class="p">(</span><span class="k">ref</span> <span class="n">unicodeStringFilename</span><span class="p">,</span> <span class="s">@&#34;\??\C:\Users\pw.log&#34;</span><span class="p">);</span>
+<span class="n">IntPtr</span> <span class="n">objectName</span> <span class="p">=</span> <span class="n">Marshal</span><span class="p">.</span><span class="n">AllocHGlobal</span><span class="p">(</span><span class="n">Marshal</span><span class="p">.</span><span class="n">SizeOf</span><span class="p">(</span><span class="n">unicodeStringFilename</span><span class="p">));</span>
+<span class="n">Marshal</span><span class="p">.</span><span class="n">StructureToPtr</span><span class="p">(</span><span class="n">unicodeStringFilename</span><span class="p">,</span> <span class="n">objectName</span><span class="p">,</span> <span class="k">true</span><span class="p">);</span>
+<span class="n">OBJECT_ATTRIBUTES</span> <span class="n">objAttributes</span> <span class="p">=</span> <span class="k">new</span> <span class="n">OBJECT_ATTRIBUTES</span> <span class="p">{</span> 
+    <span class="n">Length</span> <span class="p">=</span> <span class="p">(</span><span class="kt">int</span><span class="p">)</span><span class="n">Marshal</span><span class="p">.</span><span class="n">SizeOf</span><span class="p">(</span><span class="k">typeof</span><span class="p">(</span><span class="n">OBJECT_ATTRIBUTES</span><span class="p">)),</span>
+    <span class="n">RootDirectory</span> <span class="p">=</span> <span class="n">IntPtr</span><span class="p">.</span><span class="n">Zero</span><span class="p">,</span>
+    <span class="n">ObjectName</span> <span class="p">=</span> <span class="n">objectName</span><span class="p">,</span>
+    <span class="n">Attributes</span> <span class="p">=</span> <span class="m">0x00000040</span><span class="p">,</span>
+    <span class="n">SecurityDescriptor</span> <span class="p">=</span> <span class="n">IntPtr</span><span class="p">.</span><span class="n">Zero</span><span class="p">,</span>
+    <span class="n">SecurityQualityOfService</span> <span class="p">=</span> <span class="n">IntPtr</span><span class="p">.</span><span class="n">Zero</span>
+<span class="p">};</span>
+<span class="n">IO_STATUS_BLOCK</span> <span class="n">ioStatusBlock</span> <span class="p">=</span> <span class="k">new</span> <span class="n">IO_STATUS_BLOCK</span><span class="p">();</span>
+<span class="kt">long</span> <span class="n">allocSize</span> <span class="p">=</span> <span class="m">0</span><span class="p">;</span>
+<span class="c1">// 调用委托
+</span><span class="c1"></span><span class="n">NtCreateFileFunc</span><span class="p">(</span><span class="k">out</span> <span class="n">hFile</span><span class="p">,</span>
+  <span class="n">FileAccess</span><span class="p">.</span><span class="n">FILE_GENERIC_WRITE</span><span class="p">,</span>
+  <span class="k">ref</span> <span class="n">objAttributes</span><span class="p">,</span>
+  <span class="k">ref</span> <span class="n">ioStatusBlock</span><span class="p">,</span>
+  <span class="k">ref</span> <span class="n">allocSize</span><span class="p">,</span>
+  <span class="n">FileAttributes</span><span class="p">.</span><span class="n">Normal</span><span class="p">,</span>
+  <span class="n">FileShare</span><span class="p">.</span><span class="n">Write</span><span class="p">,</span>
+  <span class="n">CreationDisposition</span><span class="p">.</span><span class="n">FILE_OVERWRITE_IF</span><span class="p">,</span>
+  <span class="n">CreateOption</span><span class="p">.</span><span class="n">FILE_SYNCHRONOUS_IO_NONALERT</span><span class="p">,</span>
+  <span class="n">IntPtr</span><span class="p">.</span><span class="n">Zero</span><span class="p">,</span>
+  <span class="m">0</span><span class="p">);</span>
+</code></pre></td></tr></table>
+</div>
+</div><h2 id="实现效果">实现效果</h2>
+<p><figure><a class="lightgallery" href="/images/createfilestack1.png" title="/images/createfilestack1.png" data-thumbnail="/images/createfilestack1.png" data-sub-html="<h2>NtCreateFile的调用过程</h2>">
+        <img
+            class="lazyload"
+            src="/svg/loading.min.svg"
+            data-src="/images/createfilestack1.png"
+            data-srcset="/images/createfilestack1.png, /images/createfilestack1.png 1.5x, /images/createfilestack1.png 2x"
+            data-sizes="auto"
+            alt="/images/createfilestack1.png" width="5000" />
+    </a><figcaption class="image-caption">NtCreateFile的调用过程</figcaption>
+    </figure>
+可以看到在第9行用户态不经过ntdll直接调用NtCreateFile进入了内核态</p>
+<h2 id="代码">代码</h2>
+<a href="https://gist.github.com/aeverj/34aca9c830be83ef95b6737b25329739" target="_blank" rel="noopener noreffer">查看代码</a>
+<h2 id="总结">总结</h2>
+<p>由于C#运行在托管内存中，调用非托管内存需要使用<code>Marshal</code>类中的功能，包括：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-cs" data-lang="cs"><span class="n">Marshal</span><span class="p">.</span><span class="n">AllocHGlobal</span> <span class="c1">// 通过使用指定的字节数，从进程的非托管内存中分配内存
+</span><span class="c1"></span><span class="n">Marshal</span><span class="p">.</span><span class="n">Copy</span>          <span class="c1">//将数据从一维托管单精度浮点数数组复制到非托管内存指针
+</span><span class="c1"></span><span class="n">Marshal</span><span class="p">.</span><span class="n">GetDelegateForFunctionPointer</span> <span class="c1">//将非托管函数指针转换为委托
+</span></code></pre></td></tr></table>
+</div>
+</div></div><div class="post-footer" id="post-footer">
+    <div class="post-info">
+        <div class="post-info-line">
+            <div class="post-info-mod">
+                <span>更新于 2022-02-13</span>
+            </div>
+            <div class="post-info-license"></div>
+        </div>
+        <div class="post-info-line">
+            <div class="post-info-md"></div>
+            <div class="post-info-share">
+                <span></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="post-info-more">
+        <section class="post-tags"><i class="fas fa-tags fa-fw"></i>&nbsp;<a href="/tags/%E5%85%8D%E6%9D%80/">免杀</a>,&nbsp;<a href="/tags/.net/">.net</a>,&nbsp;<a href="/tags/syscall/">syscall</a>,&nbsp;<a href="/tags/pinvoke/">pinvoke</a>,&nbsp;<a href="/tags/dinvoke/">dinvoke</a></section>
+        <section>
+            <span><a href="javascript:void(0);" onclick="window.history.back();">返回</a></span>&nbsp;|&nbsp;<span><a href="/">主页</a></span>
+        </section>
+    </div>
+
+    <div class="post-nav"></div>
+</div>
+</article></div>
+            </main><footer class="footer">
+        <div class="footer-container"><div class="footer-line">由 <a href="https://gohugo.io/" target="_blank" rel="noopener noreffer" title="Hugo 0.92.2">Hugo</a> 强力驱动 | 主题 - <a href="https://github.com/dillonzq/LoveIt" target="_blank" rel="noopener noreffer" title="LoveIt 0.2.10"><i class="far fa-kiss-wink-heart fa-fw"></i> LoveIt</a>
+                </div><div class="footer-line"><i class="far fa-copyright fa-fw"></i><span itemprop="copyrightYear">2019 - 2022</span><span class="author" itemprop="copyrightHolder">&nbsp;<a href="/" target="_blank"></a></span>&nbsp;|&nbsp;<span class="license"><a rel="license external nofollow noopener noreffer" href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank">CC BY-NC 4.0</a></span></div>
+        </div>
+    </footer></div>
+
+        <div id="fixed-buttons"><a href="#" id="back-to-top" class="fixed-button" title="回到顶部">
+                <i class="fas fa-arrow-up fa-fw"></i>
+            </a><a href="#" id="view-comments" class="fixed-button" title="查看评论">
+                <i class="fas fa-comment fa-fw"></i>
+            </a>
+        </div><script type="text/javascript" src="/lib/smooth-scroll/smooth-scroll.min.js"></script><script type="text/javascript" src="/lib/lazysizes/lazysizes.min.js"></script><script type="text/javascript" src="/lib/clipboard/clipboard.min.js"></script><script type="text/javascript" src="/lib/typeit/typeit.min.js"></script><script type="text/javascript">window.config={"code":{"copyTitle":"复制到剪贴板","maxShownLines":10},"comment":{},"data":{"id-1":"averj's blog","id-2":"averj's blog"},"typeit":{"cursorChar":null,"cursorSpeed":null,"data":{"id-1":["id-1"],"id-2":["id-2"]},"duration":null,"speed":null}};</script><script type="text/javascript" src="/js/theme.min.js"></script></body>
+</html>

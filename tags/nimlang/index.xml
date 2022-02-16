@@ -1,0 +1,14 @@
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+        <title>NimLang - 标签 - aeverj&#39;s blog</title>
+        <link>https://aeverj.github.io/tags/nimlang/</link>
+        <description>NimLang - 标签 - aeverj&#39;s blog</description>
+        <generator>Hugo -- gohugo.io</generator><language>zh-CN</language><copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright><lastBuildDate>Wed, 16 Feb 2022 00:00:00 &#43;0800</lastBuildDate><atom:link href="https://aeverj.github.io/tags/nimlang/" rel="self" type="application/rss+xml" /><item>
+    <title>利用Syscall免杀 v2.0</title>
+    <link>https://aeverj.github.io/posts/syscall%E5%85%8D%E6%9D%80/</link>
+    <pubDate>Wed, 16 Feb 2022 00:00:00 &#43;0800</pubDate>
+    <author>作者</author>
+    <guid>https://aeverj.github.io/posts/syscall%E5%85%8D%E6%9D%80/</guid>
+    <description><![CDATA[<p>winx64中动态获取syscall调用号，绕过AV/EDR对ntdll的hook</p>]]></description>
+</item></channel>
+</rss>

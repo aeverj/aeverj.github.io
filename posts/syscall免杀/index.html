@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="robots" content="noodp" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge, chrome=1">
+        <title>利用Syscall免杀 v2.0 - aeverj&#39;s blog</title><meta name="Description" content="关于 LoveIt 主题"><meta property="og:title" content="利用Syscall免杀 v2.0" />
+<meta property="og:description" content="winx64中动态获取syscall调用号，绕过AV/EDR对ntdll的hook" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://aeverj.github.io/posts/syscall%E5%85%8D%E6%9D%80/" /><meta property="og:image" content="https://aeverj.github.io/logo.png"/><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2022-02-16T00:00:00+08:00" />
+<meta property="article:modified_time" content="2022-02-16T00:00:00+08:00" />
+
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:image" content="https://aeverj.github.io/logo.png"/>
+
+<meta name="twitter:title" content="利用Syscall免杀 v2.0"/>
+<meta name="twitter:description" content="winx64中动态获取syscall调用号，绕过AV/EDR对ntdll的hook"/>
+<meta name="application-name" content="LoveIt">
+<meta name="apple-mobile-web-app-title" content="LoveIt"><meta name="theme-color" content="#ffffff"><meta name="msapplication-TileColor" content="#da532c"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5"><link rel="manifest" href="/site.webmanifest"><link rel="canonical" href="https://aeverj.github.io/posts/syscall%E5%85%8D%E6%9D%80/" /><link rel="prev" href="https://aeverj.github.io/posts/csharp%E4%B8%AD%E5%88%A9%E7%94%A8syscall-%E5%85%8D%E6%9D%80/" /><link rel="stylesheet" href="/lib/normalize/normalize.min.css"><link rel="stylesheet" href="/css/style.min.css"><link rel="stylesheet" href="/lib/fontawesome-free/all.min.css"><link rel="stylesheet" href="/lib/animate/animate.min.css"><script type="application/ld+json">
+    {
+        "@context": "http://schema.org",
+        "@type": "BlogPosting",
+        "headline": "利用Syscall免杀 v2.0",
+        "inLanguage": "zh-CN",
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": "https:\/\/aeverj.github.io\/posts\/syscall%E5%85%8D%E6%9D%80\/"
+        },"genre": "posts","keywords": "免杀, .net, syscall, C\u002b\u002b, NimLang","wordcount":  1783 ,
+        "url": "https:\/\/aeverj.github.io\/posts\/syscall%E5%85%8D%E6%9D%80\/","datePublished": "2022-02-16T00:00:00+08:00","dateModified": "2022-02-16T00:00:00+08:00","license": "This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.","publisher": {
+            "@type": "Organization",
+            "name": "aeverj"},"author": {
+                "@type": "Person",
+                "name": "aeverj"
+            },"description": ""
+    }
+    </script></head>
+    <body header-desktop="fixed" header-mobile="auto"><script type="text/javascript">(window.localStorage && localStorage.getItem('theme') ? localStorage.getItem('theme') === 'dark' : ('' === 'auto' ? window.matchMedia('(prefers-color-scheme: dark)').matches : '' === 'dark')) && document.body.setAttribute('theme', 'dark');</script>
+
+        <div id="mask"></div><div class="wrapper"><header class="desktop" id="header-desktop">
+    <div class="header-wrapper">
+        <div class="header-title">
+            <a href="/" title="aeverj&#39;s blog"><span class="header-title-pre"><i class='far fa-kiss-wink-heart fa-fw'></i></span><span id="id-1" class="typeit"></span></a>
+        </div>
+        <div class="menu">
+            <div class="menu-inner"><a class="menu-item" href="/posts/"> 所有文章 </a><a class="menu-item" href="/tags/"> 标签 </a><a class="menu-item" href="/categories/"> 分类 </a><a class="menu-item" href="/about/"> 关于 </a><a class="menu-item" href="https://github.com/aeverj" title="GitHub" rel="noopener noreffer" target="_blank"><i class='fab fa-github fa-fw'></i>  </a><span class="menu-item delimiter"></span><a href="javascript:void(0);" class="menu-item theme-switch" title="切换主题">
+                    <i class="fas fa-adjust fa-fw"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</header><header class="mobile" id="header-mobile">
+    <div class="header-container">
+        <div class="header-wrapper">
+            <div class="header-title">
+                <a href="/" title="aeverj&#39;s blog"><span class="header-title-pre"><i class='far fa-kiss-wink-heart fa-fw'></i></span><span id="id-2" class="typeit"></span></a>
+            </div>
+            <div class="menu-toggle" id="menu-toggle-mobile">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
+        <div class="menu" id="menu-mobile"><a class="menu-item" href="/posts/" title="">所有文章</a><a class="menu-item" href="/tags/" title="">标签</a><a class="menu-item" href="/categories/" title="">分类</a><a class="menu-item" href="/about/" title="">关于</a><a class="menu-item" href="https://github.com/aeverj" title="GitHub" rel="noopener noreffer" target="_blank"><i class='fab fa-github fa-fw'></i></a><a href="javascript:void(0);" class="menu-item theme-switch" title="切换主题">
+                <i class="fas fa-adjust fa-fw"></i>
+            </a></div>
+    </div>
+</header>
+<div class="search-dropdown desktop">
+    <div id="search-dropdown-desktop"></div>
+</div>
+<div class="search-dropdown mobile">
+    <div id="search-dropdown-mobile"></div>
+</div>
+<main class="main">
+                <div class="container"><div class="toc" id="toc-auto">
+            <h2 class="toc-title">目录</h2>
+            <div class="toc-content" id="toc-content-auto"></div>
+        </div><article class="page single"><h1 class="single-title animated flipInX">利用Syscall免杀 v2.0</h1><div class="post-meta">
+            <div class="post-meta-line"><span class="post-author"><a href="/" title="Author" rel=" author" class="author"><i class="fas fa-user-circle fa-fw"></i>aeverj</a></span>&nbsp;<span class="post-category">收录于 <a href="/categories/%E7%BA%A2%E9%98%9F%E6%94%BB%E9%98%B2/"><i class="far fa-folder fa-fw"></i>红队攻防</a></span></div>
+            <div class="post-meta-line"><i class="far fa-calendar-alt fa-fw"></i>&nbsp;<time datetime="2022-02-16">2022-02-16</time>&nbsp;<i class="fas fa-pencil-alt fa-fw"></i>&nbsp;约 1783 字&nbsp;
+                <i class="far fa-clock fa-fw"></i>&nbsp;预计阅读 4 分钟&nbsp;</div>
+        </div><div class="details toc" id="toc-static"  kept="">
+                <div class="details-summary toc-title">
+                    <span>目录</span>
+                    <span><i class="details-icon fas fa-angle-right"></i></span>
+                </div>
+                <div class="details-content toc-content" id="toc-content-static"><nav id="TableOfContents">
+  <ul>
+    <li><a href="#背景">背景</a></li>
+    <li><a href="#被hook的ntcreateprocess">被Hook的NtCreateProcess</a>
+      <ul>
+        <li><a href="#干净的ntdll">干净的Ntdll</a>
+          <ul>
+            <li><a href="#ntdll未被hook的情况下"><code>ntdll</code>未被hook的情况下</a></li>
+            <li><a href="#ntdll被hook的情况下"><code>ntdll</code>被hook的情况下</a></li>
+          </ul>
+        </li>
+      </ul>
+    </li>
+    <li><a href="#方法一从磁盘中读取并解析调用号">方法一：从磁盘中读取并解析调用号</a>
+      <ul>
+        <li><a href="#优点">优点</a></li>
+        <li><a href="#缺点">缺点</a></li>
+        <li><a href="#关键函数">关键函数</a></li>
+        <li><a href="#参考代码">参考代码</a></li>
+      </ul>
+    </li>
+    <li><a href="#方法二创建挂起进程解析挂起进程内的ntdll">方法二：创建挂起进程，解析挂起进程内的ntdll</a>
+      <ul>
+        <li><a href="#优点-1">优点</a></li>
+        <li><a href="#缺点-1">缺点</a></li>
+        <li><a href="#关键函数-1">关键函数</a></li>
+        <li><a href="#参考代码-1">参考代码</a></li>
+      </ul>
+    </li>
+    <li><a href="#方法三利用win10并行加载获取syscall调用号">方法三：利用win10并行加载获取syscall调用号</a>
+      <ul>
+        <li><a href="#优点-2">优点</a></li>
+        <li><a href="#缺点-2">缺点</a></li>
+        <li><a href="#关键函数-2">关键函数</a></li>
+        <li><a href="#参考代码-2">参考代码</a></li>
+      </ul>
+    </li>
+    <li><a href="#方法四按函数地址顺序获取syscall调用号">方法四：按函数地址顺序获取syscall调用号</a>
+      <ul>
+        <li><a href="#优点-3">优点</a></li>
+        <li><a href="#缺点-3">缺点</a></li>
+        <li><a href="#参考代码-3">参考代码</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav></div>
+            </div><div class="content" id="content"><p>winx64中动态获取syscall调用号，绕过AV/EDR对ntdll的hook</p>
+<h2 id="背景">背景</h2>
+<ol>
+<li><a href="https://aeverj.github.io/posts/csharp%E4%B8%AD%E5%88%A9%E7%94%A8syscall-%E5%85%8D%E6%9D%80/" target="_blank" rel="noopener noreffer">上个文章</a>讲述了使用c#进行直接系统调用，没有详细说明获取系统调用号的过程。</li>
+<li>通常情况下，AV/EDR会对ntdll里面的敏感函数进行Hook，用来监控软件的行为，这次介绍一些绕过手法，获取到正确的syscall调用号。</li>
+</ol>
+<h2 id="被hook的ntcreateprocess">被Hook的NtCreateProcess</h2>
+<h3 id="干净的ntdll">干净的Ntdll</h3>
+<h4 id="ntdll未被hook的情况下"><code>ntdll</code>未被hook的情况下</h4>
+<p><figure><a class="lightgallery" href="/images/unhookNtCreateprocess.png" title="/images/unhookNtCreateprocess.png" data-thumbnail="/images/unhookNtCreateprocess.png" data-sub-html="<h2>干净的Ntdll</h2>">
+        <img
+            class="lazyload"
+            src="/svg/loading.min.svg"
+            data-src="/images/unhookNtCreateprocess.png"
+            data-srcset="/images/unhookNtCreateprocess.png, /images/unhookNtCreateprocess.png 1.5x, /images/unhookNtCreateprocess.png 2x"
+            data-sizes="auto"
+            alt="/images/unhookNtCreateprocess.png" width="5000" />
+    </a><figcaption class="image-caption">干净的Ntdll</figcaption>
+    </figure>
+其中<code>mov eax,B4</code>可以看到调用号是<code>B4</code>\</p>
+<h4 id="ntdll被hook的情况下"><code>ntdll</code>被hook的情况下</h4>
+<p><figure><a class="lightgallery" href="/images/hookNtCreateprocess.png" title="/images/hookNtCreateprocess.png" data-thumbnail="/images/hookNtCreateprocess.png" data-sub-html="<h2>NtCreateprocess被hook</h2>">
+        <img
+            class="lazyload"
+            src="/svg/loading.min.svg"
+            data-src="/images/hookNtCreateprocess.png"
+            data-srcset="/images/hookNtCreateprocess.png, /images/hookNtCreateprocess.png 1.5x, /images/hookNtCreateprocess.png 2x"
+            data-sizes="auto"
+            alt="/images/hookNtCreateprocess.png" width="5000" />
+    </a><figcaption class="image-caption">NtCreateprocess被hook</figcaption>
+    </figure>
+被hook时无法正确获取到调用号</p>
+<h2 id="方法一从磁盘中读取并解析调用号">方法一：从磁盘中读取并解析调用号</h2>
+<h3 id="优点">优点</h3>
+<p>无视AV/EDR对内存中ntdll的hook，从磁盘获取干净的ntdll</p>
+<h3 id="缺点">缺点</h3>
+<p>会调用敏感函数<code>CreateFile</code>、<code>HeapAlloc</code>、<code>ReadFile</code>读取磁盘中的ntdll，容易被察觉</p>
+<h3 id="关键函数">关键函数</h3>
+<ol>
+<li>打开文件，使用函数<code>CreateFileA</code></li>
+</ol>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-CPP" data-lang="CPP"><span class="n">HANDLE</span> <span class="nf">CreateFileA</span><span class="p">(</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>           <span class="n">LPCSTR</span>                <span class="n">lpFileName</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>           <span class="n">DWORD</span>                 <span class="n">dwDesiredAccess</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>           <span class="n">DWORD</span>                 <span class="n">dwShareMode</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">,</span> <span class="n">optional</span><span class="p">]</span> <span class="n">LPSECURITY_ATTRIBUTES</span> <span class="n">lpSecurityAttributes</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>           <span class="n">DWORD</span>                 <span class="n">dwCreationDisposition</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>           <span class="n">DWORD</span>                 <span class="n">dwFlagsAndAttributes</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">,</span> <span class="n">optional</span><span class="p">]</span> <span class="n">HANDLE</span>                <span class="n">hTemplateFile</span>
+<span class="p">);</span>
+</code></pre></td></tr></table>
+</div>
+</div><ol start="2">
+<li>分配内存 <code>HeapAlloc</code></li>
+</ol>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-CPP" data-lang="CPP"><span class="n">LPVOID</span> <span class="nf">HeapAlloc</span><span class="p">(</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span> <span class="n">HANDLE</span> <span class="n">hHeap</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span> <span class="n">DWORD</span>  <span class="n">dwFlags</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span> <span class="n">SIZE_T</span> <span class="n">dwBytes</span>
+<span class="p">);</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>3.读取文件 <code>ReadFile</code></p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-CPP" data-lang="CPP"><span class="n">BOOL</span> <span class="nf">ReadFile</span><span class="p">(</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>                <span class="n">HANDLE</span>       <span class="n">hFile</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">out</span><span class="p">]</span>               <span class="n">LPVOID</span>       <span class="n">lpBuffer</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>                <span class="n">DWORD</span>        <span class="n">nNumberOfBytesToRead</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">out</span><span class="p">,</span> <span class="n">optional</span><span class="p">]</span>     <span class="n">LPDWORD</span>      <span class="n">lpNumberOfBytesRead</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">optional</span><span class="p">]</span> <span class="n">LPOVERLAPPED</span> <span class="n">lpOverlapped</span>
+<span class="p">);</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>然后解析ntdll的导出表
+<figure><a class="lightgallery" href="/images/exportntdll.png" title="/images/exportntdll.png" data-thumbnail="/images/exportntdll.png" data-sub-html="<h2>导出表</h2>">
+        <img
+            class="lazyload"
+            src="/svg/loading.min.svg"
+            data-src="/images/exportntdll.png"
+            data-srcset="/images/exportntdll.png, /images/exportntdll.png 1.5x, /images/exportntdll.png 2x"
+            data-sizes="auto"
+            alt="/images/exportntdll.png" width="5000" />
+    </a><figcaption class="image-caption">导出表</figcaption>
+    </figure>
+即可正常获取syscall调用号\</p>
+<h3 id="参考代码">参考代码</h3>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span><span class="lnt">50
+</span><span class="lnt">51
+</span><span class="lnt">52
+</span><span class="lnt">53
+</span><span class="lnt">54
+</span><span class="lnt">55
+</span><span class="lnt">56
+</span><span class="lnt">57
+</span><span class="lnt">58
+</span><span class="lnt">59
+</span><span class="lnt">60
+</span><span class="lnt">61
+</span><span class="lnt">62
+</span><span class="lnt">63
+</span><span class="lnt">64
+</span><span class="lnt">65
+</span><span class="lnt">66
+</span><span class="lnt">67
+</span><span class="lnt">68
+</span><span class="lnt">69
+</span><span class="lnt">70
+</span><span class="lnt">71
+</span><span class="lnt">72
+</span><span class="lnt">73
+</span><span class="lnt">74
+</span><span class="lnt">75
+</span><span class="lnt">76
+</span><span class="lnt">77
+</span><span class="lnt">78
+</span><span class="lnt">79
+</span><span class="lnt">80
+</span><span class="lnt">81
+</span><span class="lnt">82
+</span><span class="lnt">83
+</span><span class="lnt">84
+</span><span class="lnt">85
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-CPP" data-lang="CPP"><span class="cp">#include</span> <span class="cpf">&lt;iostream&gt;</span><span class="cp">
+</span><span class="cp">#include</span> <span class="cpf">&#34;Windows.h&#34;</span><span class="cp">
+</span><span class="cp">#include</span> <span class="cpf">&#34;winternl.h&#34;</span><span class="cp">
+</span><span class="cp">#pragma comment(lib, &#34;ntdll&#34;)
+</span><span class="cp"></span>
+<span class="kt">int</span> <span class="k">const</span> <span class="n">SYSCALL_STUB_SIZE</span> <span class="o">=</span> <span class="mi">23</span><span class="p">;</span>
+<span class="k">using</span> <span class="n">myNtCreateFile</span> <span class="o">=</span> <span class="n">NTSTATUS</span><span class="p">(</span><span class="n">NTAPI</span><span class="o">*</span><span class="p">)(</span><span class="n">PHANDLE</span> <span class="n">FileHandle</span><span class="p">,</span> <span class="n">ACCESS_MASK</span> <span class="n">DesiredAccess</span><span class="p">,</span> <span class="n">POBJECT_ATTRIBUTES</span> <span class="n">ObjectAttributes</span><span class="p">,</span> <span class="n">PIO_STATUS_BLOCK</span> <span class="n">IoStatusBlock</span><span class="p">,</span> <span class="n">PLARGE_INTEGER</span> <span class="n">AllocationSize</span><span class="p">,</span> <span class="n">ULONG</span> <span class="n">FileAttributes</span><span class="p">,</span> <span class="n">ULONG</span> <span class="n">ShareAccess</span><span class="p">,</span> <span class="n">ULONG</span> <span class="n">CreateDisposition</span><span class="p">,</span> <span class="n">ULONG</span> <span class="n">CreateOptions</span><span class="p">,</span> <span class="n">PVOID</span> <span class="n">EaBuffer</span><span class="p">,</span> <span class="n">ULONG</span> <span class="n">EaLength</span><span class="p">);</span>
+
+<span class="n">PVOID</span> <span class="nf">RVAtoRawOffset</span><span class="p">(</span><span class="n">DWORD_PTR</span> <span class="n">RVA</span><span class="p">,</span> <span class="n">PIMAGE_SECTION_HEADER</span> <span class="n">section</span><span class="p">)</span>
+<span class="p">{</span>
+	<span class="k">return</span> <span class="p">(</span><span class="n">PVOID</span><span class="p">)(</span><span class="n">RVA</span> <span class="o">-</span> <span class="n">section</span><span class="o">-&gt;</span><span class="n">VirtualAddress</span> <span class="o">+</span> <span class="n">section</span><span class="o">-&gt;</span><span class="n">PointerToRawData</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="n">BOOL</span> <span class="nf">GetSyscallStub</span><span class="p">(</span><span class="n">LPCSTR</span> <span class="n">functionName</span><span class="p">,</span> <span class="n">PIMAGE_EXPORT_DIRECTORY</span> <span class="n">exportDirectory</span><span class="p">,</span> <span class="n">LPVOID</span> <span class="n">fileData</span><span class="p">,</span> <span class="n">PIMAGE_SECTION_HEADER</span> <span class="n">textSection</span><span class="p">,</span> <span class="n">PIMAGE_SECTION_HEADER</span> <span class="n">rdataSection</span><span class="p">,</span> <span class="n">LPVOID</span> <span class="n">syscallStub</span><span class="p">)</span>
+<span class="p">{</span>
+	<span class="n">PDWORD</span> <span class="n">addressOfNames</span> <span class="o">=</span> <span class="p">(</span><span class="n">PDWORD</span><span class="p">)</span><span class="n">RVAtoRawOffset</span><span class="p">((</span><span class="n">DWORD_PTR</span><span class="p">)</span><span class="n">fileData</span> <span class="o">+</span> <span class="o">*</span><span class="p">(</span><span class="o">&amp;</span><span class="n">exportDirectory</span><span class="o">-&gt;</span><span class="n">AddressOfNames</span><span class="p">),</span> <span class="n">rdataSection</span><span class="p">);</span>
+	<span class="n">PDWORD</span> <span class="n">addressOfFunctions</span> <span class="o">=</span> <span class="p">(</span><span class="n">PDWORD</span><span class="p">)</span><span class="n">RVAtoRawOffset</span><span class="p">((</span><span class="n">DWORD_PTR</span><span class="p">)</span><span class="n">fileData</span> <span class="o">+</span> <span class="o">*</span><span class="p">(</span><span class="o">&amp;</span><span class="n">exportDirectory</span><span class="o">-&gt;</span><span class="n">AddressOfFunctions</span><span class="p">),</span> <span class="n">rdataSection</span><span class="p">);</span>
+	<span class="n">BOOL</span> <span class="n">stubFound</span> <span class="o">=</span> <span class="n">FALSE</span><span class="p">;</span> 
+
+	<span class="k">for</span> <span class="p">(</span><span class="n">size_t</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">exportDirectory</span><span class="o">-&gt;</span><span class="n">NumberOfNames</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span>
+	<span class="p">{</span>
+		<span class="n">DWORD_PTR</span> <span class="n">functionNameVA</span> <span class="o">=</span> <span class="p">(</span><span class="n">DWORD_PTR</span><span class="p">)</span><span class="n">RVAtoRawOffset</span><span class="p">((</span><span class="n">DWORD_PTR</span><span class="p">)</span><span class="n">fileData</span> <span class="o">+</span> <span class="n">addressOfNames</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">rdataSection</span><span class="p">);</span>
+		<span class="n">DWORD_PTR</span> <span class="n">functionVA</span> <span class="o">=</span> <span class="p">(</span><span class="n">DWORD_PTR</span><span class="p">)</span><span class="n">RVAtoRawOffset</span><span class="p">((</span><span class="n">DWORD_PTR</span><span class="p">)</span><span class="n">fileData</span> <span class="o">+</span> <span class="n">addressOfFunctions</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">],</span> <span class="n">textSection</span><span class="p">);</span>
+		<span class="n">LPCSTR</span> <span class="n">functionNameResolved</span> <span class="o">=</span> <span class="p">(</span><span class="n">LPCSTR</span><span class="p">)</span><span class="n">functionNameVA</span><span class="p">;</span>
+		<span class="k">if</span> <span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">strcmp</span><span class="p">(</span><span class="n">functionNameResolved</span><span class="p">,</span> <span class="n">functionName</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+		<span class="p">{</span>
+			<span class="n">std</span><span class="o">::</span><span class="n">memcpy</span><span class="p">(</span><span class="n">syscallStub</span><span class="p">,</span> <span class="p">(</span><span class="n">LPVOID</span><span class="p">)</span><span class="n">functionVA</span><span class="p">,</span> <span class="n">SYSCALL_STUB_SIZE</span><span class="p">);</span>
+			<span class="n">stubFound</span> <span class="o">=</span> <span class="n">TRUE</span><span class="p">;</span>
+		<span class="p">}</span>
+	<span class="p">}</span>
+
+	<span class="k">return</span> <span class="n">stubFound</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span><span class="o">*</span> <span class="n">argv</span><span class="p">[])</span> <span class="p">{</span>
+	<span class="kt">char</span> <span class="n">syscallStub</span><span class="p">[</span><span class="n">SYSCALL_STUB_SIZE</span><span class="p">]</span> <span class="o">=</span> <span class="p">{};</span>
+	<span class="n">SIZE_T</span> <span class="n">bytesWritten</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+	<span class="n">DWORD</span> <span class="n">oldProtection</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+	<span class="n">HANDLE</span> <span class="n">file</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+	<span class="n">DWORD</span> <span class="n">fileSize</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+	<span class="n">DWORD</span> <span class="n">bytesRead</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+	<span class="n">LPVOID</span> <span class="n">fileData</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+	
+	<span class="c1">// variables for NtCreateFile
+</span><span class="c1"></span>	<span class="n">OBJECT_ATTRIBUTES</span> <span class="n">oa</span><span class="p">;</span>
+	<span class="n">HANDLE</span> <span class="n">fileHandle</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+	<span class="n">NTSTATUS</span> <span class="n">status</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+	<span class="n">UNICODE_STRING</span> <span class="n">fileName</span><span class="p">;</span>
+	<span class="n">RtlInitUnicodeString</span><span class="p">(</span><span class="o">&amp;</span><span class="n">fileName</span><span class="p">,</span> <span class="p">(</span><span class="n">PCWSTR</span><span class="p">)</span><span class="sa">L</span><span class="s">&#34;</span><span class="se">\\</span><span class="s">??</span><span class="se">\\</span><span class="s">c:</span><span class="se">\\</span><span class="s">temp</span><span class="se">\\</span><span class="s">pw.log&#34;</span><span class="p">);</span>
+	<span class="n">IO_STATUS_BLOCK</span> <span class="n">osb</span><span class="p">;</span>
+	<span class="n">ZeroMemory</span><span class="p">(</span><span class="o">&amp;</span><span class="n">osb</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">IO_STATUS_BLOCK</span><span class="p">));</span>
+	<span class="n">InitializeObjectAttributes</span><span class="p">(</span><span class="o">&amp;</span><span class="n">oa</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">fileName</span><span class="p">,</span> <span class="n">OBJ_CASE_INSENSITIVE</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">);</span>
+
+	<span class="c1">// define NtCreateFile
+</span><span class="c1"></span>	<span class="n">myNtCreateFile</span> <span class="n">NtCreateFile</span> <span class="o">=</span> <span class="p">(</span><span class="n">myNtCreateFile</span><span class="p">)(</span><span class="n">LPVOID</span><span class="p">)</span><span class="n">syscallStub</span><span class="p">;</span>
+	<span class="n">VirtualProtect</span><span class="p">(</span><span class="n">syscallStub</span><span class="p">,</span> <span class="n">SYSCALL_STUB_SIZE</span><span class="p">,</span> <span class="n">PAGE_EXECUTE_READWRITE</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">oldProtection</span><span class="p">);</span>
+	
+	<span class="n">file</span> <span class="o">=</span> <span class="n">CreateFileA</span><span class="p">(</span><span class="s">&#34;c:</span><span class="se">\\</span><span class="s">windows</span><span class="se">\\</span><span class="s">system32</span><span class="se">\\</span><span class="s">ntdll.dll&#34;</span><span class="p">,</span> <span class="n">GENERIC_READ</span><span class="p">,</span> <span class="n">FILE_SHARE_READ</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">,</span> <span class="n">OPEN_EXISTING</span><span class="p">,</span> <span class="n">FILE_ATTRIBUTE_NORMAL</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">);</span>
+	<span class="n">fileSize</span> <span class="o">=</span> <span class="n">GetFileSize</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">);</span>
+	<span class="n">fileData</span> <span class="o">=</span> <span class="n">HeapAlloc</span><span class="p">(</span><span class="n">GetProcessHeap</span><span class="p">(),</span> <span class="mi">0</span><span class="p">,</span> <span class="n">fileSize</span><span class="p">);</span>
+	<span class="n">ReadFile</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">fileData</span><span class="p">,</span> <span class="n">fileSize</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">bytesRead</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">);</span>
+
+	<span class="n">PIMAGE_DOS_HEADER</span> <span class="n">dosHeader</span> <span class="o">=</span> <span class="p">(</span><span class="n">PIMAGE_DOS_HEADER</span><span class="p">)</span><span class="n">fileData</span><span class="p">;</span>
+	<span class="n">PIMAGE_NT_HEADERS</span> <span class="n">imageNTHeaders</span> <span class="o">=</span> <span class="p">(</span><span class="n">PIMAGE_NT_HEADERS</span><span class="p">)((</span><span class="n">DWORD_PTR</span><span class="p">)</span><span class="n">fileData</span> <span class="o">+</span> <span class="n">dosHeader</span><span class="o">-&gt;</span><span class="n">e_lfanew</span><span class="p">);</span>
+	<span class="n">DWORD</span> <span class="n">exportDirRVA</span> <span class="o">=</span> <span class="n">imageNTHeaders</span><span class="o">-&gt;</span><span class="n">OptionalHeader</span><span class="p">.</span><span class="n">DataDirectory</span><span class="p">[</span><span class="n">IMAGE_DIRECTORY_ENTRY_EXPORT</span><span class="p">].</span><span class="n">VirtualAddress</span><span class="p">;</span>
+	<span class="n">PIMAGE_SECTION_HEADER</span> <span class="n">section</span> <span class="o">=</span> <span class="n">IMAGE_FIRST_SECTION</span><span class="p">(</span><span class="n">imageNTHeaders</span><span class="p">);</span>
+	<span class="n">PIMAGE_SECTION_HEADER</span> <span class="n">textSection</span> <span class="o">=</span> <span class="n">section</span><span class="p">;</span>
+	<span class="n">PIMAGE_SECTION_HEADER</span> <span class="n">rdataSection</span> <span class="o">=</span> <span class="n">section</span><span class="p">;</span>
+	
+	<span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">imageNTHeaders</span><span class="o">-&gt;</span><span class="n">FileHeader</span><span class="p">.</span><span class="n">NumberOfSections</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> 
+	<span class="p">{</span>
+		<span class="k">if</span> <span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">strcmp</span><span class="p">((</span><span class="n">CHAR</span><span class="o">*</span><span class="p">)</span><span class="n">section</span><span class="o">-&gt;</span><span class="n">Name</span><span class="p">,</span> <span class="p">(</span><span class="n">CHAR</span><span class="o">*</span><span class="p">)</span><span class="s">&#34;.rdata&#34;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span> 
+			<span class="n">rdataSection</span> <span class="o">=</span> <span class="n">section</span><span class="p">;</span>
+			<span class="k">break</span><span class="p">;</span>
+		<span class="p">}</span>
+		<span class="n">section</span><span class="o">++</span><span class="p">;</span>
+	<span class="p">}</span>
+
+	<span class="n">PIMAGE_EXPORT_DIRECTORY</span> <span class="n">exportDirectory</span> <span class="o">=</span> <span class="p">(</span><span class="n">PIMAGE_EXPORT_DIRECTORY</span><span class="p">)</span><span class="n">RVAtoRawOffset</span><span class="p">((</span><span class="n">DWORD_PTR</span><span class="p">)</span><span class="n">fileData</span> <span class="o">+</span> <span class="n">exportDirRVA</span><span class="p">,</span> <span class="n">rdataSection</span><span class="p">);</span>
+	
+	<span class="n">GetSyscallStub</span><span class="p">(</span><span class="s">&#34;NtCreateFile&#34;</span><span class="p">,</span> <span class="n">exportDirectory</span><span class="p">,</span> <span class="n">fileData</span><span class="p">,</span> <span class="n">textSection</span><span class="p">,</span> <span class="n">rdataSection</span><span class="p">,</span> <span class="n">syscallStub</span><span class="p">);</span>
+	<span class="n">NtCreateFile</span><span class="p">(</span><span class="o">&amp;</span><span class="n">fileHandle</span><span class="p">,</span> <span class="n">FILE_GENERIC_WRITE</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">oa</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">osb</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">FILE_ATTRIBUTE_NORMAL</span><span class="p">,</span> <span class="n">FILE_SHARE_WRITE</span><span class="p">,</span> <span class="n">FILE_OVERWRITE_IF</span><span class="p">,</span> <span class="n">FILE_SYNCHRONOUS_IO_NONALERT</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">,</span>	<span class="mi">0</span><span class="p">);</span>
+
+	<span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>代码来自 <a href="https://www.ired.team/offensive-security/defense-evasion/retrieving-ntdll-syscall-stubs-at-run-time" target="_blank" rel="noopener noreffer">ired.team</a></p>
+<h2 id="方法二创建挂起进程解析挂起进程内的ntdll">方法二：创建挂起进程，解析挂起进程内的ntdll</h2>
+<h3 id="优点-1">优点</h3>
+<p>不从磁盘读取，避免了方法一中的敏感函数，创建挂起的子进程并读取内存然后关闭子进程，此时EDR不会注入ntdll</p>
+<h3 id="缺点-1">缺点</h3>
+<p>需要创建多余的进程</p>
+<h3 id="关键函数-1">关键函数</h3>
+<ol>
+<li>创建进程 <code>CreateProcess</code></li>
+</ol>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-CPP" data-lang="CPP"><span class="n">BOOL</span> <span class="nf">CreateProcessA</span><span class="p">(</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">,</span> <span class="n">optional</span><span class="p">]</span>      <span class="n">LPCSTR</span>                <span class="n">lpApplicationName</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">optional</span><span class="p">]</span> <span class="n">LPSTR</span>                 <span class="n">lpCommandLine</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">,</span> <span class="n">optional</span><span class="p">]</span>      <span class="n">LPSECURITY_ATTRIBUTES</span> <span class="n">lpProcessAttributes</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">,</span> <span class="n">optional</span><span class="p">]</span>      <span class="n">LPSECURITY_ATTRIBUTES</span> <span class="n">lpThreadAttributes</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>                <span class="n">BOOL</span>                  <span class="n">bInheritHandles</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>                <span class="n">DWORD</span>                 <span class="n">dwCreationFlags</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">,</span> <span class="n">optional</span><span class="p">]</span>      <span class="n">LPVOID</span>                <span class="n">lpEnvironment</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">,</span> <span class="n">optional</span><span class="p">]</span>      <span class="n">LPCSTR</span>                <span class="n">lpCurrentDirectory</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>                <span class="n">LPSTARTUPINFOA</span>        <span class="n">lpStartupInfo</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">out</span><span class="p">]</span>               <span class="n">LPPROCESS_INFORMATION</span> <span class="n">lpProcessInformation</span>
+<span class="p">);</span>
+</code></pre></td></tr></table>
+</div>
+</div><ol start="2">
+<li>读取内存 <code>ReadProcessMemory</code></li>
+</ol>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-CPP" data-lang="CPP"><span class="n">BOOL</span> <span class="nf">ReadProcessMemory</span><span class="p">(</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>  <span class="n">HANDLE</span>  <span class="n">hProcess</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>  <span class="n">LPCVOID</span> <span class="n">lpBaseAddress</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">out</span><span class="p">]</span> <span class="n">LPVOID</span>  <span class="n">lpBuffer</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>  <span class="n">SIZE_T</span>  <span class="n">nSize</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">out</span><span class="p">]</span> <span class="n">SIZE_T</span>  <span class="o">*</span><span class="n">lpNumberOfBytesRead</span>
+<span class="p">);</span>
+</code></pre></td></tr></table>
+</div>
+</div><h3 id="参考代码-1">参考代码</h3>
+<ul>
+<li><a href="https://github.com/aeverj/NimSyscalls" target="_blank" rel="noopener noreffer">本人写的Nim版Syscall代码</a></li>
+<li><a href="https://github.com/plackyhacker/Peruns-Fart" target="_blank" rel="noopener noreffer">C#版Syscall代码</a></li>
+</ul>
+<h2 id="方法三利用win10并行加载获取syscall调用号">方法三：利用win10并行加载获取syscall调用号</h2>
+<h3 id="优点-2">优点</h3>
+<p>不从磁盘读取，不创建进程，利用直接系统调用的函数自身重新加载新的ntdll</p>
+<h3 id="缺点-2">缺点</h3>
+<p>会在当前进程模块中多一份ntdll
+<figure><a class="lightgallery" href="/images/doubleNtdll.png" title="/images/doubleNtdll.png" data-thumbnail="/images/doubleNtdll.png" data-sub-html="<h2>并行加载ntdll的进程模块</h2>">
+        <img
+            class="lazyload"
+            src="/svg/loading.min.svg"
+            data-src="/images/doubleNtdll.png"
+            data-srcset="/images/doubleNtdll.png, /images/doubleNtdll.png 1.5x, /images/doubleNtdll.png 2x"
+            data-sizes="auto"
+            alt="/images/doubleNtdll.png" width="5000" />
+    </a><figcaption class="image-caption">并行加载ntdll的进程模块</figcaption>
+    </figure></p>
+<h3 id="关键函数-2">关键函数</h3>
+<ol>
+<li>直接系统调用的打开文件函数<code>NtOpenFile</code></li>
+</ol>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-CPP" data-lang="CPP"><span class="n">NTSTATUS</span> <span class="nf">NtOpenFile</span><span class="p">(</span>
+  <span class="p">[</span><span class="n">out</span><span class="p">]</span> <span class="n">PHANDLE</span>            <span class="n">FileHandle</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>  <span class="n">ACCESS_MASK</span>        <span class="n">DesiredAccess</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>  <span class="n">POBJECT_ATTRIBUTES</span> <span class="n">ObjectAttributes</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">out</span><span class="p">]</span> <span class="n">PIO_STATUS_BLOCK</span>   <span class="n">IoStatusBlock</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>  <span class="n">ULONG</span>              <span class="n">ShareAccess</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>  <span class="n">ULONG</span>              <span class="n">OpenOptions</span>
+<span class="p">);</span>
+</code></pre></td></tr></table>
+</div>
+</div><ol start="2">
+<li>直接系统调用的创建section对象函数<code>NtCreateSection</code></li>
+</ol>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-CPP" data-lang="CPP"><span class="n">NTSTATUS</span> <span class="nf">NtCreateSection</span><span class="p">(</span>
+  <span class="p">[</span><span class="n">out</span><span class="p">]</span>          <span class="n">PHANDLE</span>            <span class="n">SectionHandle</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>           <span class="n">ACCESS_MASK</span>        <span class="n">DesiredAccess</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">,</span> <span class="n">optional</span><span class="p">]</span> <span class="n">POBJECT_ATTRIBUTES</span> <span class="n">ObjectAttributes</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">,</span> <span class="n">optional</span><span class="p">]</span> <span class="n">PLARGE_INTEGER</span>     <span class="n">MaximumSize</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>           <span class="n">ULONG</span>              <span class="n">SectionPageProtection</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>           <span class="n">ULONG</span>              <span class="n">AllocationAttributes</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">,</span> <span class="n">optional</span><span class="p">]</span> <span class="n">HANDLE</span>             <span class="n">FileHandle</span>
+<span class="p">);</span>
+</code></pre></td></tr></table>
+</div>
+</div><ol start="3">
+<li>直接系统调用的未公开函数<code>NtMapViewOfSection</code></li>
+</ol>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-CPP" data-lang="CPP"><span class="n">myNtMapViewOfSection</span> <span class="o">=</span> <span class="n">NTSTATUS</span><span class="p">(</span><span class="n">NTAPI</span><span class="o">*</span><span class="p">)(</span><span class="n">HANDLE</span> <span class="n">SectionHandle</span><span class="p">,</span>	<span class="n">HANDLE</span> <span class="n">ProcessHandle</span><span class="p">,</span> <span class="n">PVOID</span><span class="o">*</span> <span class="n">BaseAddress</span><span class="p">,</span> <span class="n">ULONG_PTR</span> <span class="n">ZeroBits</span><span class="p">,</span> <span class="n">SIZE_T</span> <span class="n">CommitSize</span><span class="p">,</span> <span class="n">PLARGE_INTEGER</span> <span class="n">SectionOffset</span><span class="p">,</span> <span class="n">PSIZE_T</span> <span class="n">ViewSize</span><span class="p">,</span> <span class="n">DWORD</span> <span class="n">InheritDisposition</span><span class="p">,</span> <span class="n">ULONG</span> <span class="n">AllocationType</span><span class="p">,</span> <span class="n">ULONG</span> <span class="n">Win32Protect</span><span class="p">);</span>
+</code></pre></td></tr></table>
+</div>
+</div><h3 id="参考代码-2">参考代码</h3>
+<ul>
+<li>关键：解析出<code>ntdll</code>的<code>.data</code>节中的<code>LdrpThunkSignature</code>，从里面解析出上面三个关键函数</li>
+</ul>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-asm" data-lang="asm"><span class="err">0:005&gt;</span> <span class="nf">u</span> <span class="no">LdrpThunkSignature</span> <span class="no">l20</span>
+<span class="nf">ntdll</span><span class="p">!</span><span class="no">LdrpThunkSignature</span><span class="p">:</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd59ab40</span> <span class="mi">4</span><span class="no">c8bd1</span>          <span class="no">mov</span>     <span class="no">r10</span><span class="p">,</span><span class="no">rcx</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd59ab43</span> <span class="no">b833000000</span>      <span class="no">mov</span>     <span class="no">eax</span><span class="p">,</span><span class="mi">33</span><span class="no">h</span>       <span class="err">//</span> <span class="no">NtOpenFile</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd59ab48</span> <span class="no">f604250803fe7f01</span> <span class="no">test</span>    <span class="no">byte</span> <span class="no">ptr</span> <span class="p">[</span><span class="no">SharedUserData</span><span class="err">+</span><span class="mi">0x308</span> <span class="p">(</span><span class="mi">00000000</span><span class="err">`</span><span class="mi">7</span><span class="no">ffe0308</span><span class="p">)],</span><span class="mi">1</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd59ab50</span> <span class="mi">4</span><span class="no">c8bd1</span>          <span class="no">mov</span>     <span class="no">r10</span><span class="p">,</span><span class="no">rcx</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd59ab53</span> <span class="no">b84a000000</span>      <span class="no">mov</span>     <span class="no">eax</span><span class="p">,</span><span class="mi">4</span><span class="no">Ah</span>       <span class="err">//</span> <span class="no">NtCreateSection</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd59ab58</span> <span class="no">f604250803fe7f01</span> <span class="no">test</span>    <span class="no">byte</span> <span class="no">ptr</span> <span class="p">[</span><span class="no">SharedUserData</span><span class="err">+</span><span class="mi">0x308</span> <span class="p">(</span><span class="mi">00000000</span><span class="err">`</span><span class="mi">7</span><span class="no">ffe0308</span><span class="p">)],</span><span class="mi">1</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd59ab60</span> <span class="mi">4</span><span class="no">c8bd1</span>          <span class="no">mov</span>     <span class="no">r10</span><span class="p">,</span><span class="no">rcx</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd59ab63</span> <span class="no">b83d000000</span>      <span class="no">mov</span>     <span class="no">eax</span><span class="p">,</span><span class="mi">3</span><span class="no">Dh</span>       <span class="err">//</span> <span class="no">ZwQueryAttributesFile</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd59ab68</span> <span class="no">f604250803fe7f01</span> <span class="no">test</span>    <span class="no">byte</span> <span class="no">ptr</span> <span class="p">[</span><span class="no">SharedUserData</span><span class="err">+</span><span class="mi">0x308</span> <span class="p">(</span><span class="mi">00000000</span><span class="err">`</span><span class="mi">7</span><span class="no">ffe0308</span><span class="p">)],</span><span class="mi">1</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd59ab70</span> <span class="mi">4</span><span class="no">c8bd1</span>          <span class="no">mov</span>     <span class="no">r10</span><span class="p">,</span><span class="no">rcx</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd59ab73</span> <span class="no">b837000000</span>      <span class="no">mov</span>     <span class="no">eax</span><span class="p">,</span><span class="mi">37</span><span class="no">h</span>       <span class="err">//</span> <span class="no">NtOpenSection</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd59ab78</span> <span class="no">f604250803fe7f01</span> <span class="no">test</span>    <span class="no">byte</span> <span class="no">ptr</span> <span class="p">[</span><span class="no">SharedUserData</span><span class="err">+</span><span class="mi">0x308</span> <span class="p">(</span><span class="mi">00000000</span><span class="err">`</span><span class="mi">7</span><span class="no">ffe0308</span><span class="p">)],</span><span class="mi">1</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd59ab80</span> <span class="mi">4</span><span class="no">c8bd1</span>          <span class="no">mov</span>     <span class="no">r10</span><span class="p">,</span><span class="no">rcx</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd59ab83</span> <span class="no">b828000000</span>      <span class="no">mov</span>     <span class="no">eax</span><span class="p">,</span><span class="mi">28</span><span class="no">h</span>       <span class="err">//</span> <span class="no">NtMapViewOfSection</span>
+<span class="err">00007</span><span class="nf">ffa</span><span class="err">`</span><span class="no">fd59ab88</span> <span class="no">f604250803fe7f01</span> <span class="no">test</span>    <span class="no">byte</span> <span class="no">ptr</span> <span class="p">[</span><span class="no">SharedUserData</span><span class="err">+</span><span class="mi">0x308</span> <span class="p">(</span><span class="mi">00000000</span><span class="err">`</span><span class="mi">7</span><span class="no">ffe0308</span><span class="p">)],</span><span class="mi">1</span>
+</code></pre></td></tr></table>
+</div>
+</div><ul>
+<li><a href="https://github.com/cube0x0/ParallelSyscalls" target="_blank" rel="noopener noreffer">C#版并行加载获取syscall代码</a></li>
+</ul>
+<h2 id="方法四按函数地址顺序获取syscall调用号">方法四：按函数地址顺序获取syscall调用号</h2>
+<h3 id="优点-3">优点</h3>
+<p>解析自身ntdll，不存在任何的敏感操作</p>
+<h3 id="缺点-3">缺点</h3>
+<p>暂未发现</p>
+<h3 id="参考代码-3">参考代码</h3>
+<ul>
+<li>关键：从peb中获取ntdll基址并解析ntdll的导出表，按地址顺序保存函数，其中的索引就是syscall调用号</li>
+<li><a href="https://github.com/crummie5/FreshyCalls" target="_blank" rel="noopener noreffer">C++版本获取syscall调用号代码</a></li>
+</ul></div><div class="post-footer" id="post-footer">
+    <div class="post-info">
+        <div class="post-info-line">
+            <div class="post-info-mod">
+                <span>更新于 2022-02-16</span>
+            </div>
+            <div class="post-info-license"></div>
+        </div>
+        <div class="post-info-line">
+            <div class="post-info-md"></div>
+            <div class="post-info-share">
+                <span></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="post-info-more">
+        <section class="post-tags"><i class="fas fa-tags fa-fw"></i>&nbsp;<a href="/tags/%E5%85%8D%E6%9D%80/">免杀</a>,&nbsp;<a href="/tags/.net/">.net</a>,&nbsp;<a href="/tags/syscall/">syscall</a>,&nbsp;<a href="/tags/c&#43;&#43;/">C&#43;&#43;</a>,&nbsp;<a href="/tags/nimlang/">NimLang</a></section>
+        <section>
+            <span><a href="javascript:void(0);" onclick="window.history.back();">返回</a></span>&nbsp;|&nbsp;<span><a href="/">主页</a></span>
+        </section>
+    </div>
+
+    <div class="post-nav"><a href="/posts/csharp%E4%B8%AD%E5%88%A9%E7%94%A8syscall-%E5%85%8D%E6%9D%80/" class="prev" rel="prev" title="C#中利用Syscall免杀 v1.0"><i class="fas fa-angle-left fa-fw"></i>C#中利用Syscall免杀 v1.0</a></div>
+</div>
+</article></div>
+            </main><footer class="footer">
+        <div class="footer-container"><div class="footer-line">由 <a href="https://gohugo.io/" target="_blank" rel="noopener noreffer" title="Hugo 0.92.2">Hugo</a> 强力驱动 | 主题 - <a href="https://github.com/dillonzq/LoveIt" target="_blank" rel="noopener noreffer" title="LoveIt 0.2.10"><i class="far fa-kiss-wink-heart fa-fw"></i> LoveIt</a>
+                </div><div class="footer-line"><i class="far fa-copyright fa-fw"></i><span itemprop="copyrightYear">2019 - 2022</span><span class="author" itemprop="copyrightHolder">&nbsp;<a href="/" target="_blank"></a></span>&nbsp;|&nbsp;<span class="license"><a rel="license external nofollow noopener noreffer" href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank">CC BY-NC 4.0</a></span></div>
+        </div>
+    </footer></div>
+
+        <div id="fixed-buttons"><a href="#" id="back-to-top" class="fixed-button" title="回到顶部">
+                <i class="fas fa-arrow-up fa-fw"></i>
+            </a><a href="#" id="view-comments" class="fixed-button" title="查看评论">
+                <i class="fas fa-comment fa-fw"></i>
+            </a>
+        </div><script type="text/javascript" src="/lib/smooth-scroll/smooth-scroll.min.js"></script><script type="text/javascript" src="/lib/lazysizes/lazysizes.min.js"></script><script type="text/javascript" src="/lib/clipboard/clipboard.min.js"></script><script type="text/javascript" src="/lib/typeit/typeit.min.js"></script><script type="text/javascript">window.config={"code":{"copyTitle":"复制到剪贴板","maxShownLines":10},"comment":{},"data":{"id-1":"averj's blog","id-2":"averj's blog"},"typeit":{"cursorChar":null,"cursorSpeed":null,"data":{"id-1":["id-1"],"id-2":["id-2"]},"duration":null,"speed":null}};</script><script type="text/javascript" src="/js/theme.min.js"></script></body>
+</html>

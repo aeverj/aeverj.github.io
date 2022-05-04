@@ -29,7 +29,7 @@
         "mainEntityOfPage": {
             "@type": "WebPage",
             "@id": "https:\/\/aeverj.github.io\/posts\/rdi-%E5%8F%8D%E5%B0%84dll%E5%8A%A0%E8%BD%BD\/"
-        },"genre": "posts","keywords": "免杀, syscall, RDI, 无文件加载, 进程注入","wordcount":  1827 ,
+        },"genre": "posts","keywords": "免杀, syscall, RDI, 无文件加载, 进程注入","wordcount":  1819 ,
         "url": "https:\/\/aeverj.github.io\/posts\/rdi-%E5%8F%8D%E5%B0%84dll%E5%8A%A0%E8%BD%BD\/","datePublished": "2022-05-04T00:00:00+08:00","dateModified": "2022-05-04T00:00:00+08:00","license": "This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.","publisher": {
             "@type": "Organization",
             "name": "aeverj"},"author": {
@@ -79,7 +79,7 @@
             <div class="toc-content" id="toc-content-auto"></div>
         </div><article class="page single"><h1 class="single-title animated flipInX">RDI 反射dll加载(KaynLdr)</h1><div class="post-meta">
             <div class="post-meta-line"><span class="post-author"><a href="/" title="Author" rel=" author" class="author"><i class="fas fa-user-circle fa-fw"></i>aeverj</a></span>&nbsp;<span class="post-category">收录于 <a href="/categories/%E7%BA%A2%E9%98%9F%E6%94%BB%E9%98%B2/"><i class="far fa-folder fa-fw"></i>红队攻防</a></span></div>
-            <div class="post-meta-line"><i class="far fa-calendar-alt fa-fw"></i>&nbsp;<time datetime="2022-05-04">2022-05-04</time>&nbsp;<i class="fas fa-pencil-alt fa-fw"></i>&nbsp;约 1827 字&nbsp;
+            <div class="post-meta-line"><i class="far fa-calendar-alt fa-fw"></i>&nbsp;<time datetime="2022-05-04">2022-05-04</time>&nbsp;<i class="fas fa-pencil-alt fa-fw"></i>&nbsp;约 1819 字&nbsp;
                 <i class="far fa-clock fa-fw"></i>&nbsp;预计阅读 4 分钟&nbsp;</div>
         </div><div class="details toc" id="toc-static"  kept="">
                 <div class="details-summary toc-title">
@@ -107,7 +107,7 @@
 <h2 id="项目介绍">项目介绍</h2>
 <p>该项目代码使用了C语言和汇编，分配内存时设置内存属性为RW，等到将dll代码写入到分配的内存以后将内存属性改为RW，这可以有效避免杀软对敏感内存的动态扫描。最后在执行dll代码时，又清空了dll的DOS和NT头，让这段内存在杀软看起来不那么可疑。</p>
 <h2 id="编译及运行">编译及运行</h2>
-<p>编译使用的系统为<code>Parrot Linux</code>，git clone项目后使用make来进行编译，此时会提示<code>x86_64-w64-mingw32-gcc: not found</code>,此时需要使用命令<code>sudo apt-get install gcc-mingw-w64-x86-64</code>来安装mingw编译器。目前该项目不支持x86编译，所以需要修改<code>KaynInject</code>目录下的makefile文件，去掉x86编译的命令即可正常编译。最后的结果如下图<figure><a class="lightgallery" href="/images/rdiMessagebox.png" title="/images/rdiMessagebox.png" data-thumbnail="/images/rdiMessagebox.png" data-sub-html="<h2>干净的Ntdll</h2>">
+<p>编译使用的系统为<code>Parrot Linux</code>，git clone项目后使用make来进行编译，此时会提示<code>x86_64-w64-mingw32-gcc: not found</code>,此时需要使用命令<code>sudo apt-get install gcc-mingw-w64-x86-64</code>来安装mingw编译器。目前该项目不支持x86编译，所以需要修改<code>KaynInject</code>目录下的makefile文件，去掉x86编译的命令即可正常编译。最后的结果如下图<figure><a class="lightgallery" href="/images/rdiMessagebox.png" title="/images/rdiMessagebox.png" data-thumbnail="/images/rdiMessagebox.png" data-sub-html="<h2>运行结果</h2>">
         <img
             class="lazyload"
             src="/svg/loading.min.svg"
@@ -115,7 +115,7 @@
             data-srcset="/images/rdiMessagebox.png, /images/rdiMessagebox.png 1.5x, /images/rdiMessagebox.png 2x"
             data-sizes="auto"
             alt="/images/rdiMessagebox.png" width="5000" />
-    </a><figcaption class="image-caption">干净的Ntdll</figcaption>
+    </a><figcaption class="image-caption">运行结果</figcaption>
     </figure></p>
 <h2 id="重点代码分析">重点代码分析</h2>
 <h3 id="在dll中获取文件头位置">在dll中获取文件头位置</h3>

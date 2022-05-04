@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="robots" content="noodp" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge, chrome=1">
+        <title>RDI 反射dll加载(KaynLdr) - aeverj&#39;s blog</title><meta name="Description" content="关于 LoveIt 主题"><meta property="og:title" content="RDI 反射dll加载(KaynLdr)" />
+<meta property="og:description" content="RDI是无文件落地，直接内存加载执行PE的技术，C2中经常使用。" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://aeverj.github.io/posts/rdi-%E5%8F%8D%E5%B0%84dll%E5%8A%A0%E8%BD%BD/" /><meta property="og:image" content="https://aeverj.github.io/logo.png"/><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2022-05-04T00:00:00+08:00" />
+<meta property="article:modified_time" content="2022-05-04T00:00:00+08:00" />
+
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:image" content="https://aeverj.github.io/logo.png"/>
+
+<meta name="twitter:title" content="RDI 反射dll加载(KaynLdr)"/>
+<meta name="twitter:description" content="RDI是无文件落地，直接内存加载执行PE的技术，C2中经常使用。"/>
+<meta name="application-name" content="LoveIt">
+<meta name="apple-mobile-web-app-title" content="LoveIt"><meta name="theme-color" content="#ffffff"><meta name="msapplication-TileColor" content="#da532c"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5"><link rel="manifest" href="/site.webmanifest"><link rel="canonical" href="https://aeverj.github.io/posts/rdi-%E5%8F%8D%E5%B0%84dll%E5%8A%A0%E8%BD%BD/" /><link rel="prev" href="https://aeverj.github.io/posts/syscall%E5%85%8D%E6%9D%80/" /><link rel="stylesheet" href="/lib/normalize/normalize.min.css"><link rel="stylesheet" href="/css/style.min.css"><link rel="stylesheet" href="/lib/fontawesome-free/all.min.css"><link rel="stylesheet" href="/lib/animate/animate.min.css"><script type="application/ld+json">
+    {
+        "@context": "http://schema.org",
+        "@type": "BlogPosting",
+        "headline": "RDI 反射dll加载(KaynLdr)",
+        "inLanguage": "zh-CN",
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": "https:\/\/aeverj.github.io\/posts\/rdi-%E5%8F%8D%E5%B0%84dll%E5%8A%A0%E8%BD%BD\/"
+        },"genre": "posts","keywords": "免杀, syscall, RDI, 无文件加载, 进程注入","wordcount":  1827 ,
+        "url": "https:\/\/aeverj.github.io\/posts\/rdi-%E5%8F%8D%E5%B0%84dll%E5%8A%A0%E8%BD%BD\/","datePublished": "2022-05-04T00:00:00+08:00","dateModified": "2022-05-04T00:00:00+08:00","license": "This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.","publisher": {
+            "@type": "Organization",
+            "name": "aeverj"},"author": {
+                "@type": "Person",
+                "name": "aeverj"
+            },"description": ""
+    }
+    </script></head>
+    <body header-desktop="fixed" header-mobile="auto"><script type="text/javascript">(window.localStorage && localStorage.getItem('theme') ? localStorage.getItem('theme') === 'dark' : ('' === 'auto' ? window.matchMedia('(prefers-color-scheme: dark)').matches : '' === 'dark')) && document.body.setAttribute('theme', 'dark');</script>
+
+        <div id="mask"></div><div class="wrapper"><header class="desktop" id="header-desktop">
+    <div class="header-wrapper">
+        <div class="header-title">
+            <a href="/" title="aeverj&#39;s blog"><span class="header-title-pre"><i class='far fa-kiss-wink-heart fa-fw'></i></span><span id="id-1" class="typeit"></span></a>
+        </div>
+        <div class="menu">
+            <div class="menu-inner"><a class="menu-item" href="/posts/"> 所有文章 </a><a class="menu-item" href="/tags/"> 标签 </a><a class="menu-item" href="/categories/"> 分类 </a><a class="menu-item" href="/about/"> 关于 </a><a class="menu-item" href="https://github.com/aeverj" title="GitHub" rel="noopener noreffer" target="_blank"><i class='fab fa-github fa-fw'></i>  </a><span class="menu-item delimiter"></span><a href="javascript:void(0);" class="menu-item theme-switch" title="切换主题">
+                    <i class="fas fa-adjust fa-fw"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</header><header class="mobile" id="header-mobile">
+    <div class="header-container">
+        <div class="header-wrapper">
+            <div class="header-title">
+                <a href="/" title="aeverj&#39;s blog"><span class="header-title-pre"><i class='far fa-kiss-wink-heart fa-fw'></i></span><span id="id-2" class="typeit"></span></a>
+            </div>
+            <div class="menu-toggle" id="menu-toggle-mobile">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
+        <div class="menu" id="menu-mobile"><a class="menu-item" href="/posts/" title="">所有文章</a><a class="menu-item" href="/tags/" title="">标签</a><a class="menu-item" href="/categories/" title="">分类</a><a class="menu-item" href="/about/" title="">关于</a><a class="menu-item" href="https://github.com/aeverj" title="GitHub" rel="noopener noreffer" target="_blank"><i class='fab fa-github fa-fw'></i></a><a href="javascript:void(0);" class="menu-item theme-switch" title="切换主题">
+                <i class="fas fa-adjust fa-fw"></i>
+            </a></div>
+    </div>
+</header>
+<div class="search-dropdown desktop">
+    <div id="search-dropdown-desktop"></div>
+</div>
+<div class="search-dropdown mobile">
+    <div id="search-dropdown-mobile"></div>
+</div>
+<main class="main">
+                <div class="container"><div class="toc" id="toc-auto">
+            <h2 class="toc-title">目录</h2>
+            <div class="toc-content" id="toc-content-auto"></div>
+        </div><article class="page single"><h1 class="single-title animated flipInX">RDI 反射dll加载(KaynLdr)</h1><div class="post-meta">
+            <div class="post-meta-line"><span class="post-author"><a href="/" title="Author" rel=" author" class="author"><i class="fas fa-user-circle fa-fw"></i>aeverj</a></span>&nbsp;<span class="post-category">收录于 <a href="/categories/%E7%BA%A2%E9%98%9F%E6%94%BB%E9%98%B2/"><i class="far fa-folder fa-fw"></i>红队攻防</a></span></div>
+            <div class="post-meta-line"><i class="far fa-calendar-alt fa-fw"></i>&nbsp;<time datetime="2022-05-04">2022-05-04</time>&nbsp;<i class="fas fa-pencil-alt fa-fw"></i>&nbsp;约 1827 字&nbsp;
+                <i class="far fa-clock fa-fw"></i>&nbsp;预计阅读 4 分钟&nbsp;</div>
+        </div><div class="details toc" id="toc-static"  kept="">
+                <div class="details-summary toc-title">
+                    <span>目录</span>
+                    <span><i class="details-icon fas fa-angle-right"></i></span>
+                </div>
+                <div class="details-content toc-content" id="toc-content-static"><nav id="TableOfContents">
+  <ul>
+    <li><a href="#背景">背景</a></li>
+    <li><a href="#项目介绍">项目介绍</a></li>
+    <li><a href="#编译及运行">编译及运行</a></li>
+    <li><a href="#重点代码分析">重点代码分析</a>
+      <ul>
+        <li><a href="#在dll中获取文件头位置">在dll中获取文件头位置</a></li>
+      </ul>
+    </li>
+    <li><a href="#获取函数地址的方式">获取函数地址的方式</a></li>
+    <li><a href="#项目中syscall的代码">项目中Syscall的代码</a></li>
+  </ul>
+</nav></div>
+            </div><div class="content" id="content"><p>RDI是无文件落地，直接内存加载执行PE的技术，C2中经常使用。</p>
+<h2 id="背景">背景</h2>
+<p>最初的rdi技术在很早就已经出现，地址<a href="https://github.com/stephenfewer/ReflectiveDLLInjection" target="_blank" rel="noopener noreffer">ReflectiveDLLInjection</a>，里面用到了的API包括<code>HeapAlloc</code>、<code>VirtualAllocEx</code>、<code>WriteProcessMemory</code>等，随着现在杀软技术的提升，这种方式已经不能够满足现在的免杀要求，现在需要通过<code>Syscalls</code>、函数hash等方式来提升免杀能力。</p>
+<p>下面就通过<a href="https://github.com/Cracked5pider/KaynLdr.git" target="_blank" rel="noopener noreffer">KaynLdr</a>这个项目来简单分析一下目前在代码方面可以优化的地方。</p>
+<h2 id="项目介绍">项目介绍</h2>
+<p>该项目代码使用了C语言和汇编，分配内存时设置内存属性为RW，等到将dll代码写入到分配的内存以后将内存属性改为RW，这可以有效避免杀软对敏感内存的动态扫描。最后在执行dll代码时，又清空了dll的DOS和NT头，让这段内存在杀软看起来不那么可疑。</p>
+<h2 id="编译及运行">编译及运行</h2>
+<p>编译使用的系统为<code>Parrot Linux</code>，git clone项目后使用make来进行编译，此时会提示<code>x86_64-w64-mingw32-gcc: not found</code>,此时需要使用命令<code>sudo apt-get install gcc-mingw-w64-x86-64</code>来安装mingw编译器。目前该项目不支持x86编译，所以需要修改<code>KaynInject</code>目录下的makefile文件，去掉x86编译的命令即可正常编译。最后的结果如下图<figure><a class="lightgallery" href="/images/rdiMessagebox.png" title="/images/rdiMessagebox.png" data-thumbnail="/images/rdiMessagebox.png" data-sub-html="<h2>干净的Ntdll</h2>">
+        <img
+            class="lazyload"
+            src="/svg/loading.min.svg"
+            data-src="/images/rdiMessagebox.png"
+            data-srcset="/images/rdiMessagebox.png, /images/rdiMessagebox.png 1.5x, /images/rdiMessagebox.png 2x"
+            data-sizes="auto"
+            alt="/images/rdiMessagebox.png" width="5000" />
+    </a><figcaption class="image-caption">干净的Ntdll</figcaption>
+    </figure></p>
+<h2 id="重点代码分析">重点代码分析</h2>
+<h3 id="在dll中获取文件头位置">在dll中获取文件头位置</h3>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback">   KaynCaller:
+       call pop                 ; Calling the next instruction puts RIP address on the top of our stack
+       pop:
+       pop rcx                  ; 前面两条指令用来获取当前的代码执行的地址
+   loop:
+       xor rbx, rbx             ; rbx = 0
+       mov ebx, 0x5A4D          ; MZ bytes for comparing if we are at the start of our reflective DLL
+       dec rcx
+       cmp bx,  word ds:[rcx]   ; Compare the first 2 bytes of the page to MZ
+       jne loop					; rcx值不断减一，向低地址处遍历，然后比较内存数据是否与MZ(PE文件头)相同
+       xor rax, rax             ; eax = 0
+       mov ax,  [rcx+0x3C]      ; ax = PIMAGE_DOS_HEADER-&gt;e_lfanew
+       add rax, rcx             ; DLL base + RVA new exe header = 0x00004550 PE00 Signature
+       xor rbx, rbx             ; rbx = 0
+       add bx,  0x4550          ; bx = IMAGE_NT_SIGNATURE
+       cmp bx,  word ds:[rax]   ; eax == IMAGE_NT_SIGNATURE
+       jne loop					; 当找到MZ标志后，再获取NT Headers中的Signature，比较是否与0x4550相同
+       mov rax, rcx             ; Saves the address to our reflective Dll
+   ret                          ; return KaynLdrAddr
+</code></pre></td></tr></table>
+</div>
+</div><p><strong>可以优化的地方：此时dll已经加载到目标进程的内存中，MZ这个标志对杀软来说比较明显，可以修改为其他字符。</strong></p>
+<h2 id="获取函数地址的方式">获取函数地址的方式</h2>
+<ol>
+<li>
+<p>获取函数所在dll的地址</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="n">hKernel32</span>          <span class="o">=</span> <span class="n">KGetModuleByHash</span><span class="p">(</span><span class="n">KERNEL32_HASH</span><span class="p">);</span>
+<span class="n">hNtDLL</span>             <span class="o">=</span> <span class="n">KGetModuleByHash</span><span class="p">(</span><span class="n">NTDLL_HASH</span><span class="p">);</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>KaynLoader函数运行完以前，输入表还没有初始化，所以此时获取dll地址是通过PEB获取的，通过代码<code>__readgsqword( 0x60 )</code>来获取到PEB的地址，然后读取Ldr结构中的<code>InMemoryOrderModuleList</code>链表，使用<strong>dll名字的hash</strong>去对比，然后获取到dll地址。(此处使用hash可以有效的免杀)</p>
+</li>
+<li>
+<p>获得dll的地址以后，通过读取dll的导出表，同样比对函数名字的hash来查找函数地址，可以获得必要的函数包括<code>NtAllocateVirtualMemory</code>、<code>NtProtectVirtualMemory</code>,此处是从本身的ntdll中获取函数地址。此处写内存时使用的<code>__movsb</code>函数</p>
+</li>
+</ol>
+<p><strong>可以优化的地方：此处获取函数地址是从本身的ntdll中获取，<a href="https://aeverj.github.io/posts/syscall%E5%85%8D%E6%9D%80/" target="_blank" rel="noopener noreffer">这篇文章</a>里面说过ntdll里面敏感函数可能被修改，所以尽可能使用其他方法来获取ntdll中干净的函数地址，可以使用<a href="https://aeverj.github.io/posts/syscall%E5%85%8D%E6%9D%80/" target="_blank" rel="noopener noreffer">文章</a>里面已经讲解过那几种方法。</strong></p>
+<h2 id="项目中syscall的代码">项目中Syscall的代码</h2>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback">   ;; set syscall value in r11 register
+   SyscallPrepare:
+       nop             ; extra nop to &#34;obfuscate&#34;
+       xor r11, r11    ; zero out r11
+       nop             ; extra nop to &#34;obfuscate&#34;
+       nop             ; extra nop to &#34;obfuscate&#34;
+       mov r11d,ecx   ; save 32-bit value from ecx to r11 as 32-bit
+   ret                 ; return
+
+   ;; Invoke Syscall and pass given arguments
+   SyscallInvoke:
+       nop             ; extra nop to &#34;obfuscate&#34;
+       xor eax, eax    ; zero out rax
+       mov r10, rcx    ; syscall arguments
+       nop             ; extra nop to &#34;obfuscate&#34;
+       mov eax, r11d   ; move value from r11 to eax which is the syscall id to invoke the syscall
+       nop             ; extra nop to &#34;obfuscate&#34;
+       syscall         ; invoke the syscall
+       nop             ; extra nop to &#34;obfuscate&#34;
+   ret                 ; return NTSTATUS
+</code></pre></td></tr></table>
+</div>
+</div><p>这个项目中的syscall分为两个部分。</p>
+<ol>
+<li>
+<p><code>SyscallPrepare</code>部分将函数的调用号传入r11寄存器的低32位，中间还使用了许多的nop混淆了代码，可以干扰杀软的判断</p>
+</li>
+<li>
+<p><code>SyscallInvoke</code>部分将上面获取的函数调用号传入eax中，同上面一样中间加了nop来混淆代码</p>
+</li>
+</ol>
+<p><strong>可以改进的地方：此处杀软可能会检测syscall指令来源地址，上面的这种写法syscall的来源是当前进程中的某个地址，不合常理。syscall应该来源于ntdll的内存领域中，关于这一点可以参考<a href="https://github.com/aeverj/NimSyscalls.git" target="_blank" rel="noopener noreffer">这个代码</a>，这份代码的功能是创建挂起的指令然后获取到syscall的调用号，编写汇编指令模拟syscall过程，将dll中原本syscall指令的地址传入<code>R11</code>寄存器，然后<code>jmp r11</code>,这种方式在目前有效。</strong></p></div><div class="post-footer" id="post-footer">
+    <div class="post-info">
+        <div class="post-info-line">
+            <div class="post-info-mod">
+                <span>更新于 2022-05-04</span>
+            </div>
+            <div class="post-info-license"></div>
+        </div>
+        <div class="post-info-line">
+            <div class="post-info-md"></div>
+            <div class="post-info-share">
+                <span></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="post-info-more">
+        <section class="post-tags"><i class="fas fa-tags fa-fw"></i>&nbsp;<a href="/tags/%E5%85%8D%E6%9D%80/">免杀</a>,&nbsp;<a href="/tags/syscall/">syscall</a>,&nbsp;<a href="/tags/rdi/">RDI</a>,&nbsp;<a href="/tags/%E6%97%A0%E6%96%87%E4%BB%B6%E5%8A%A0%E8%BD%BD/">无文件加载</a>,&nbsp;<a href="/tags/%E8%BF%9B%E7%A8%8B%E6%B3%A8%E5%85%A5/">进程注入</a></section>
+        <section>
+            <span><a href="javascript:void(0);" onclick="window.history.back();">返回</a></span>&nbsp;|&nbsp;<span><a href="/">主页</a></span>
+        </section>
+    </div>
+
+    <div class="post-nav"><a href="/posts/syscall%E5%85%8D%E6%9D%80/" class="prev" rel="prev" title="利用Syscall免杀 v2.0"><i class="fas fa-angle-left fa-fw"></i>利用Syscall免杀 v2.0</a></div>
+</div>
+</article></div>
+            </main><footer class="footer">
+        <div class="footer-container"><div class="footer-line">由 <a href="https://gohugo.io/" target="_blank" rel="noopener noreffer" title="Hugo 0.92.2">Hugo</a> 强力驱动 | 主题 - <a href="https://github.com/dillonzq/LoveIt" target="_blank" rel="noopener noreffer" title="LoveIt 0.2.10"><i class="far fa-kiss-wink-heart fa-fw"></i> LoveIt</a>
+                </div><div class="footer-line"><i class="far fa-copyright fa-fw"></i><span itemprop="copyrightYear">2019 - 2022</span><span class="author" itemprop="copyrightHolder">&nbsp;<a href="/" target="_blank"></a></span>&nbsp;|&nbsp;<span class="license"><a rel="license external nofollow noopener noreffer" href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank">CC BY-NC 4.0</a></span></div>
+        </div>
+    </footer></div>
+
+        <div id="fixed-buttons"><a href="#" id="back-to-top" class="fixed-button" title="回到顶部">
+                <i class="fas fa-arrow-up fa-fw"></i>
+            </a><a href="#" id="view-comments" class="fixed-button" title="查看评论">
+                <i class="fas fa-comment fa-fw"></i>
+            </a>
+        </div><script type="text/javascript" src="/lib/smooth-scroll/smooth-scroll.min.js"></script><script type="text/javascript" src="/lib/lazysizes/lazysizes.min.js"></script><script type="text/javascript" src="/lib/clipboard/clipboard.min.js"></script><script type="text/javascript" src="/lib/typeit/typeit.min.js"></script><script type="text/javascript">window.config={"code":{"copyTitle":"复制到剪贴板","maxShownLines":10},"comment":{},"data":{"id-1":"averj's blog","id-2":"averj's blog"},"typeit":{"cursorChar":null,"cursorSpeed":null,"data":{"id-1":["id-1"],"id-2":["id-2"]},"duration":null,"speed":null}};</script><script type="text/javascript" src="/js/theme.min.js"></script></body>
+</html>

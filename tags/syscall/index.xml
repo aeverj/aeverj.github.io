@@ -3,7 +3,14 @@
         <title>syscall - 标签 - aeverj&#39;s blog</title>
         <link>https://aeverj.github.io/tags/syscall/</link>
         <description>syscall - 标签 - aeverj&#39;s blog</description>
-        <generator>Hugo -- gohugo.io</generator><language>zh-CN</language><copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright><lastBuildDate>Wed, 16 Feb 2022 00:00:00 &#43;0800</lastBuildDate><atom:link href="https://aeverj.github.io/tags/syscall/" rel="self" type="application/rss+xml" /><item>
+        <generator>Hugo -- gohugo.io</generator><language>zh-CN</language><copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright><lastBuildDate>Wed, 04 May 2022 00:00:00 &#43;0800</lastBuildDate><atom:link href="https://aeverj.github.io/tags/syscall/" rel="self" type="application/rss+xml" /><item>
+    <title>RDI 反射dll加载(KaynLdr)</title>
+    <link>https://aeverj.github.io/posts/rdi-%E5%8F%8D%E5%B0%84dll%E5%8A%A0%E8%BD%BD/</link>
+    <pubDate>Wed, 04 May 2022 00:00:00 &#43;0800</pubDate>
+    <author>作者</author>
+    <guid>https://aeverj.github.io/posts/rdi-%E5%8F%8D%E5%B0%84dll%E5%8A%A0%E8%BD%BD/</guid>
+    <description><![CDATA[<p>RDI是无文件落地，直接内存加载执行PE的技术，C2中经常使用。</p>]]></description>
+</item><item>
     <title>利用Syscall免杀 v2.0</title>
     <link>https://aeverj.github.io/posts/syscall%E5%85%8D%E6%9D%80/</link>
     <pubDate>Wed, 16 Feb 2022 00:00:00 &#43;0800</pubDate>

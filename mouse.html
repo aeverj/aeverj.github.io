@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mouse Wheel Tester</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .scroll-tracker {
+            height: 2px;
+            background-color: #e5e7eb;
+            position: relative;
+        }
+        .scroll-progress {
+            height: 100%;
+            background-color: #3b82f6;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            transition: width 0.1s ease;
+        }
+        .direction-indicator {
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            display: inline-block;
+            margin: 0 5px;
+            position: relative;
+            top: -1px;
+        }
+        .up {
+            border-bottom: 12px solid #10b981;
+        }
+        .down {
+            border-top: 12px solid #ef4444;
+        }
+        .log-entry {
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .highlight {
+            background-color: #fef08a;
+            animation: highlight 1.5s ease-out;
+        }
+        @keyframes highlight {
+            from { background-color: #fef08a; }
+            to { background-color: transparent; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen p-6">
+    <div class="max-w-3xl mx-auto">
+        <div class="bg-white rounded-xl shadow-md overflow-hidden p-6 mb-6">
+            <div class="flex items-center mb-4">
+                <i class="fas fa-mouse-alt text-blue-500 text-2xl mr-3"></i>
+                <h1 class="text-2xl font-bold text-gray-800">Mouse Wheel Tester</h1>
+            </div>
+            <p class="text-gray-600 mb-6">This tool helps detect mouse wheel issues by tracking precise scroll movements (1mm increments). Scroll up and down to test your mouse wheel for backscroll problems.</p>
+            
+            <div class="mb-6">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm font-medium text-gray-700">Scroll Distance</span>
+                    <span id="distance-value" class="text-sm font-medium text-blue-600">0 mm</span>
+                </div>
+                <div class="scroll-tracker">
+                    <div id="scroll-progress" class="scroll-progress" style="width: 0%"></div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <div class="flex items-center mb-2">
+                        <div class="direction-indicator up mr-2"></div>
+                        <span class="text-sm font-medium text-gray-700">Up Scrolls</span>
+                    </div>
+                    <div id="up-count" class="text-2xl font-bold text-green-600">0</div>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <div class="flex items-center mb-2">
+                        <div class="direction-indicator down mr-2"></div>
+                        <span class="text-sm font-medium text-gray-700">Down Scrolls</span>
+                    </div>
+                    <div id="down-count" class="text-2xl font-bold text-red-600">0</div>
+                </div>
+            </div>
+            
+            <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                <div class="flex items-center mb-2">
+                    <i class="fas fa-info-circle text-blue-500 mr-2"></i>
+                    <span class="text-sm font-medium text-gray-700">Current Status</span>
+                </div>
+                <div id="current-status" class="text-lg font-medium text-gray-800">Waiting for scroll input...</div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            <div class="p-4 border-b border-gray-200">
+                <div class="flex items-center">
+                    <i class="fas fa-list-ul text-blue-500 mr-2"></i>
+                    <h2 class="text-lg font-semibold text-gray-800">Scroll Log</h2>
+                </div>
+            </div>
+            <div id="scroll-log" class="p-4 max-h-64 overflow-y-auto">
+                <div class="text-center text-gray-500 py-4">No scroll events detected yet</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Constants
+            const PIXELS_PER_MM = 3.78; // Standard conversion (96 DPI / 25.4mm)
+            const SCROLL_THRESHOLD = PIXELS_PER_MM; // 1mm threshold
+            
+            // State variables
+            let accumulatedDelta = 0;
+            let upCount = 0;
+            let downCount = 0;
+            let totalDistance = 0;
+            let lastDirection = null;
+            let lastScrollTime = 0;
+            
+            // DOM elements
+            const upCountEl = document.getElementById('up-count');
+            const downCountEl = document.getElementById('down-count');
+            const distanceValueEl = document.getElementById('distance-value');
+            const currentStatusEl = document.getElementById('current-status');
+            const scrollLogEl = document.getElementById('scroll-log');
+            const scrollProgressEl = document.getElementById('scroll-progress');
+            
+            // Handle wheel event
+            window.addEventListener('wheel', function(e) {
+                e.preventDefault();
+                
+                const now = Date.now();
+                const delta = e.deltaY;
+                accumulatedDelta += delta;
+                totalDistance += Math.abs(delta);
+                
+                // Update progress bar (visual indicator)
+                const progressPercent = Math.min(100, Math.abs(accumulatedDelta) / SCROLL_THRESHOLD * 50);
+                scrollProgressEl.style.width = `${progressPercent}%`;
+                scrollProgressEl.style.backgroundColor = accumulatedDelta > 0 ? '#ef4444' : '#10b981';
+                
+                // Check if we've reached the threshold (1mm)
+                if (Math.abs(accumulatedDelta) >= SCROLL_THRESHOLD) {
+                    const direction = accumulatedDelta > 0 ? 'down' : 'up';
+                    
+                    // Detect potential backscroll (direction change without reaching threshold)
+                    if (lastDirection && direction !== lastDirection && (now - lastScrollTime) < 200) {
+                        logScrollEvent('backscroll', direction, true);
+                    }
+                    
+                    // Update counts
+                    if (direction === 'up') {
+                        upCount++;
+                        upCountEl.textContent = upCount;
+                    } else {
+                        downCount++;
+                        downCountEl.textContent = downCount;
+                    }
+                    
+                    // Log the scroll event
+                    logScrollEvent(direction);
+                    
+                    // Update status
+                    currentStatusEl.textContent = `Scrolled ${direction} (${Math.round(totalDistance / PIXELS_PER_MM)} mm total)`;
+                    if (direction !== lastDirection) {
+                        currentStatusEl.classList.add('highlight');
+                        setTimeout(() => currentStatusEl.classList.remove('highlight'), 1500);
+                    }
+                    
+                    // Reset accumulated delta
+                    accumulatedDelta = 0;
+                    lastDirection = direction;
+                    lastScrollTime = now;
+                }
+                
+                // Update distance display
+                distanceValueEl.textContent = `${Math.round(totalDistance / PIXELS_PER_MM)} mm`;
+            }, { passive: false });
+            
+            // Function to log scroll events
+            function logScrollEvent(direction, isBackscroll = false) {
+                const now = new Date();
+                const timeString = now.toLocaleTimeString();
+                
+                if (scrollLogEl.firstChild && scrollLogEl.firstChild.textContent.includes('No scroll events')) {
+                    scrollLogEl.innerHTML = '';
+                }
+                
+                const logEntry = document.createElement('div');
+                logEntry.className = `log-entry py-2 px-3 mb-1 rounded-md ${isBackscroll ? 'bg-red-50 border-l-4 border-red-500' : 'bg-gray-50'}`;
+                
+                const directionIcon = document.createElement('div');
+                directionIcon.className = `direction-indicator ${direction === 'up' ? 'up' : 'down'} mr-2`;
+                
+                const textSpan = document.createElement('span');
+                textSpan.className = 'text-sm text-gray-700';
+                
+                if (isBackscroll) {
+                    textSpan.textContent = `⚠️ Possible backscroll detected (${direction}) at ${timeString}`;
+                } else {
+                    textSpan.textContent = `Scrolled ${direction} at ${timeString}`;
+                }
+                
+                logEntry.appendChild(directionIcon);
+                logEntry.appendChild(textSpan);
+                
+                scrollLogEl.insertBefore(logEntry, scrollLogEl.firstChild);
+                
+                // Auto-scroll to top
+                scrollLogEl.scrollTop = 0;
+            }
+        });
+    </script>
+</body>
+</html>
